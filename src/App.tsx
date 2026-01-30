@@ -1,9 +1,62 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Trophy, Sparkles, User, Flag, Skull, Coins, Zap } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Trophy, Sparkles, User, Flag, Skull, Coins, Zap, Target, Check, Hand, MapPin, Footprints } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-// Maze layout: 0 = path, 1 = wall, 4 = coin, 5 = enemy spawn
+type ObjectiveType = 'coins' | 'reach_goal' | 'max_moves' | 'checkpoint' | 'no_teleport';
+
+type Objective = {
+  id: string;
+  text: string;
+  type: ObjectiveType;
+  current: number;
+  target: number;
+  completed: boolean;
+};
+
+// Maze layout: 0 = path, 1 = wall, 4 = coin, 5 = enemy spawn, 6 = checkpoint
 const LEVELS = [
+  {
+    maze: [
+      [1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 0, 4, 0, 0, 0, 1],
+      [1, 0, 1, 1, 1, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 0, 1, 1, 0, 1],
+      [1, 0, 0, 0, 4, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1],
+    ],
+    start: { x: 1, y: 1 },
+    end: { x: 6, y: 5 },
+    checkpoint: null,
+    enemies: [],
+    teleportCost: 5,
+    objectiveTemplates: [
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
+  },
+  {
+    maze: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 4, 0, 1, 0, 0, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1, 4, 1],
+      [1, 1, 1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 0, 1, 1, 4, 1, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ],
+    start: { x: 1, y: 1 },
+    end: { x: 7, y: 7 },
+    checkpoint: null,
+    enemies: [],
+    teleportCost: 6,
+    objectiveTemplates: [
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
+  },
   {
     maze: [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -19,10 +72,42 @@ const LEVELS = [
     ],
     start: { x: 1, y: 1 },
     end: { x: 8, y: 8 },
+    checkpoint: null,
     enemies: [
       { start: {x: 1, y: 7}, path: [{x: 1, y: 7}, {x: 2, y: 7}, {x: 3, y: 7}, {x: 3, y: 6}, {x: 3, y: 5}, {x: 2, y: 5}, {x: 1, y: 5}, {x: 1, y: 6}] }
     ],
-    teleportCost: 5
+    teleportCost: 7,
+    objectiveTemplates: [
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
+  },
+  {
+    maze: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 4, 0, 0, 0, 0, 4, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1, 1, 0, 1],
+      [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      [1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+      [1, 5, 0, 0, 6, 0, 0, 0, 5, 1],
+      [1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+      [1, 0, 0, 0, 4, 0, 1, 0, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1, 1, 4, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ],
+    start: { x: 1, y: 1 },
+    end: { x: 8, y: 8 },
+    checkpoint: { x: 4, y: 5 },
+    enemies: [
+      { start: {x: 1, y: 5}, path: [{x: 1, y: 5}, {x: 2, y: 5}, {x: 3, y: 5}, {x: 3, y: 6}, {x: 2, y: 6}, {x: 1, y: 6}] },
+      { start: {x: 8, y: 5}, path: [{x: 8, y: 5}, {x: 7, y: 5}, {x: 6, y: 5}, {x: 6, y: 6}, {x: 7, y: 6}, {x: 8, y: 6}] }
+    ],
+    teleportCost: 8,
+    objectiveTemplates: [
+      { id: 'checkpoint', text: 'Kontrol noktasına uğra', type: 'checkpoint' as ObjectiveType },
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
   },
   {
     maze: [
@@ -31,7 +116,7 @@ const LEVELS = [
       [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
       [1, 0, 1, 0, 0, 0, 0, 0, 5, 1, 0, 1],
       [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 4, 1],
-      [1, 0, 0, 4, 0, 5, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 4, 0, 5, 0, 0, 0, 0, 6, 1],
       [1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1],
       [1, 0, 0, 0, 0, 4, 0, 0, 0, 1, 0, 1],
       [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
@@ -40,11 +125,77 @@ const LEVELS = [
     ],
     start: { x: 1, y: 1 },
     end: { x: 10, y: 9 },
+    checkpoint: { x: 10, y: 5 },
     enemies: [
       { start: {x: 8, y: 3}, path: [{x: 8, y: 3}, {x: 8, y: 4}, {x: 8, y: 5}, {x: 7, y: 5}, {x: 6, y: 5}, {x: 6, y: 4}, {x: 6, y: 3}, {x: 7, y: 3}] },
       { start: {x: 5, y: 5}, path: [{x: 5, y: 5}, {x: 6, y: 5}, {x: 7, y: 5}, {x: 7, y: 6}, {x: 7, y: 7}, {x: 6, y: 7}, {x: 5, y: 7}, {x: 5, y: 6}] }
     ],
-    teleportCost: 8
+    teleportCost: 10,
+    objectiveTemplates: [
+      { id: 'moves', text: 'Maksimum hamle', type: 'max_moves' as ObjectiveType, target: 50 },
+      { id: 'checkpoint', text: 'Kontrol noktasına uğra', type: 'checkpoint' as ObjectiveType },
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
+  },
+  {
+    maze: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 1],
+      [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+      [1, 0, 1, 5, 0, 0, 6, 0, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 4, 5, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 4, 1],
+      [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+      [1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ],
+    start: { x: 1, y: 1 },
+    end: { x: 10, y: 9 },
+    checkpoint: { x: 6, y: 3 },
+    enemies: [
+      { start: {x: 3, y: 3}, path: [{x: 3, y: 3}, {x: 4, y: 3}, {x: 5, y: 3}, {x: 5, y: 4}, {x: 4, y: 4}, {x: 3, y: 4}] },
+      { start: {x: 6, y: 5}, path: [{x: 6, y: 5}, {x: 7, y: 5}, {x: 7, y: 6}, {x: 6, y: 6}] }
+    ],
+    teleportCost: 12,
+    objectiveTemplates: [
+      { id: 'no_teleport', text: 'Teleport kullanma', type: 'no_teleport' as ObjectiveType },
+      { id: 'checkpoint', text: 'Kontrol noktasına uğra', type: 'checkpoint' as ObjectiveType },
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
+  },
+  {
+    maze: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 4, 0, 0, 0, 0, 0, 0, 4, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1],
+      [1, 0, 1, 5, 0, 0, 0, 5, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 6, 1, 0, 1, 1, 0, 1],
+      [1, 0, 0, 0, 1, 4, 1, 0, 0, 0, 0, 1],
+      [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1],
+      [1, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 4, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ],
+    start: { x: 1, y: 1 },
+    end: { x: 10, y: 9 },
+    checkpoint: { x: 5, y: 4 },
+    enemies: [
+      { start: {x: 3, y: 3}, path: [{x: 3, y: 3}, {x: 4, y: 3}, {x: 5, y: 3}, {x: 6, y: 3}, {x: 6, y: 4}, {x: 5, y: 4}, {x: 4, y: 4}, {x: 3, y: 4}] },
+      { start: {x: 7, y: 3}, path: [{x: 7, y: 3}, {x: 8, y: 3}, {x: 8, y: 4}, {x: 7, y: 4}] },
+      { start: {x: 1, y: 7}, path: [{x: 1, y: 7}, {x: 2, y: 7}, {x: 3, y: 7}, {x: 4, y: 7}, {x: 5, y: 7}, {x: 6, y: 7}, {x: 6, y: 8}, {x: 5, y: 8}, {x: 4, y: 8}, {x: 3, y: 8}, {x: 2, y: 8}, {x: 1, y: 8}] }
+    ],
+    teleportCost: 15,
+    objectiveTemplates: [
+      { id: 'moves', text: 'Maksimum hamle', type: 'max_moves' as ObjectiveType, target: 45 },
+      { id: 'checkpoint', text: 'Kontrol noktasına uğra', type: 'checkpoint' as ObjectiveType },
+      { id: 'coins', text: 'Coinleri topla', type: 'coins' as ObjectiveType },
+      { id: 'goal', text: 'Bayrağa ulaş', type: 'reach_goal' as ObjectiveType }
+    ]
   }
 ];
 
@@ -58,8 +209,12 @@ export default function App() {
   const [collectedCoins, setCollectedCoins] = useState<Set<string>>(new Set());
   const [totalCoins, setTotalCoins] = useState(0);
   const [teleportCharges, setTeleportCharges] = useState(0);
+  const [teleportUsed, setTeleportUsed] = useState(false);
+  const [visitedCheckpoint, setVisitedCheckpoint] = useState(false);
   const [enemyPositions, setEnemyPositions] = useState<{pos: Position, pathIndex: number}[]>([]);
   const [gameOver, setGameOver] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [objectives, setObjectives] = useState<Objective[]>([]);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const level = LEVELS[currentLevel];
@@ -71,6 +226,98 @@ export default function App() {
     const [x, y] = key.split('-').map(Number);
     return MAZE[y]?.[x] === 4;
   }).length;
+
+  // Initialize objectives when level changes
+  useEffect(() => {
+    const initialObjectives: Objective[] = level.objectiveTemplates.map(template => {
+      if (template.type === 'coins') {
+        return {
+          id: template.id,
+          text: template.text,
+          type: template.type,
+          current: 0,
+          target: totalCoinsInLevel,
+          completed: false
+        };
+      } else if (template.type === 'max_moves') {
+        return {
+          id: template.id,
+          text: template.text,
+          type: template.type,
+          current: 0,
+          target: template.target || 30,
+          completed: true // Starts as completed, fails if exceeded
+        };
+      } else if (template.type === 'checkpoint') {
+        return {
+          id: template.id,
+          text: template.text,
+          type: template.type,
+          current: 0,
+          target: 1,
+          completed: false
+        };
+      } else if (template.type === 'no_teleport') {
+        return {
+          id: template.id,
+          text: template.text,
+          type: template.type,
+          current: 0,
+          target: 1,
+          completed: true // Starts as completed, fails if teleport used
+        };
+      } else {
+        return {
+          id: template.id,
+          text: template.text,
+          type: template.type,
+          current: 0,
+          target: 1,
+          completed: false
+        };
+      }
+    });
+    setObjectives(initialObjectives);
+  }, [currentLevel, totalCoinsInLevel]);
+
+  // Update objectives based on game state
+  useEffect(() => {
+    setObjectives(prev => prev.map(obj => {
+      if (obj.type === 'coins') {
+        const completed = coinsCollectedInLevel >= totalCoinsInLevel;
+        return { ...obj, current: coinsCollectedInLevel, completed };
+      } else if (obj.type === 'reach_goal') {
+        const completed = playerPos.x === level.end.x && playerPos.y === level.end.y && coinsCollectedInLevel >= totalCoinsInLevel;
+        return { ...obj, current: completed ? 1 : 0, completed };
+      } else if (obj.type === 'max_moves') {
+        const completed = moves <= obj.target;
+        return { ...obj, current: moves, completed };
+      } else if (obj.type === 'checkpoint') {
+        const completed = visitedCheckpoint;
+        return { ...obj, current: visitedCheckpoint ? 1 : 0, completed };
+      } else if (obj.type === 'no_teleport') {
+        const completed = !teleportUsed;
+        return { ...obj, current: teleportUsed ? 1 : 0, completed };
+      }
+      return obj;
+    }));
+  }, [coinsCollectedInLevel, totalCoinsInLevel, playerPos, level.end, moves, visitedCheckpoint, teleportUsed]);
+
+  // Check if all objectives are completed
+  useEffect(() => {
+    if (!showSplash && objectives.length > 0 && objectives.every(obj => obj.completed)) {
+      setWon(true);
+    }
+  }, [objectives, showSplash]);
+
+  // Show splash screen when level changes
+  useEffect(() => {
+    setShowSplash(true);
+  }, [currentLevel]);
+
+  const closeSplash = () => {
+    setShowSplash(false);
+  };
 
   // Initialize enemy positions
   useEffect(() => {
@@ -84,7 +331,7 @@ export default function App() {
   // Move enemies step by step
   useEffect(() => {
     const interval = setInterval(() => {
-      if (won || gameOver) return;
+      if (won || gameOver || showSplash) return;
       
       setEnemyPositions(prevPositions => 
         prevPositions.map((enemyState, index) => {
@@ -96,30 +343,24 @@ export default function App() {
           };
         })
       );
-    }, 800); // Move every 800ms for smooth step-by-step movement
+    }, 800);
 
     return () => clearInterval(interval);
-  }, [won, gameOver, currentLevel]);
+  }, [won, gameOver, currentLevel, showSplash]);
 
   // Check collision with enemies
   useEffect(() => {
+    if (showSplash) return;
     const collision = enemyPositions.some(
       enemy => enemy.pos.x === playerPos.x && enemy.pos.y === playerPos.y
     );
     if (collision && !gameOver && !won) {
       setGameOver(true);
     }
-  }, [playerPos, enemyPositions, gameOver, won]);
-
-  // Check win condition - must collect all coins first
-  useEffect(() => {
-    if (playerPos.x === level.end.x && playerPos.y === level.end.y && coinsCollectedInLevel === totalCoinsInLevel) {
-      setWon(true);
-    }
-  }, [playerPos, coinsCollectedInLevel, totalCoinsInLevel]);
+  }, [playerPos, enemyPositions, gameOver, won, showSplash]);
 
   const movePlayer = (dx: number, dy: number) => {
-    if (won || gameOver) return;
+    if (won || gameOver || showSplash) return;
 
     const newX = playerPos.x + dx;
     const newY = playerPos.y + dy;
@@ -144,13 +385,18 @@ export default function App() {
         }
       }
       
+      // Check if it's a checkpoint
+      if (cell === 6) {
+        setVisitedCheckpoint(true);
+      }
+      
       setPlayerPos({ x: newX, y: newY });
       setMoves(moves + 1);
     }
   };
 
   const useTeleport = () => {
-    if (teleportCharges > 0 && !won && !gameOver) {
+    if (teleportCharges > 0 && !won && !gameOver && !showSplash) {
       // Teleport to a safe position near the goal
       const teleportPos = { 
         x: level.end.x - 1, 
@@ -161,6 +407,7 @@ export default function App() {
       if (MAZE[teleportPos.y][teleportPos.x] !== 1) {
         setPlayerPos(teleportPos);
         setTeleportCharges(teleportCharges - 1);
+        setTeleportUsed(true);
         setMoves(moves + 1);
       }
     }
@@ -174,7 +421,7 @@ export default function App() {
   };
 
   const handleKeyPress = (e: KeyboardEvent) => {
-    if (won || gameOver) return;
+    if (won || gameOver || showSplash) return;
     switch (e.key) {
       case 'ArrowUp':
       case 'w':
@@ -209,7 +456,7 @@ export default function App() {
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartRef.current || won || gameOver) return;
+    if (!touchStartRef.current || won || gameOver || showSplash) return;
 
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - touchStartRef.current.x;
@@ -232,7 +479,7 @@ export default function App() {
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [playerPos, moves, won, gameOver]);
+  }, [playerPos, moves, won, gameOver, showSplash]);
 
   const resetGame = () => {
     setPlayerPos(level.start);
@@ -240,11 +487,14 @@ export default function App() {
     setWon(false);
     setGameOver(false);
     setCollectedCoins(new Set());
+    setVisitedCheckpoint(false);
+    setTeleportUsed(false);
     const initialPositions = level.enemies.map(enemy => ({
       pos: enemy.start,
       pathIndex: 0
     }));
     setEnemyPositions(initialPositions);
+    setShowSplash(true);
   };
 
   const nextLevel = () => {
@@ -255,6 +505,8 @@ export default function App() {
       setWon(false);
       setGameOver(false);
       setCollectedCoins(new Set());
+      setVisitedCheckpoint(false);
+      setTeleportUsed(false);
       const initialPositions = LEVELS[currentLevel + 1].enemies.map(enemy => ({
         pos: enemy.start,
         pathIndex: 0
@@ -262,10 +514,21 @@ export default function App() {
       setEnemyPositions(initialPositions);
     } else {
       // Game completed
-      resetGame();
       setCurrentLevel(0);
+      setPlayerPos(LEVELS[0].start);
+      setMoves(0);
+      setWon(false);
+      setGameOver(false);
+      setCollectedCoins(new Set());
+      setVisitedCheckpoint(false);
+      setTeleportUsed(false);
       setTotalCoins(0);
       setTeleportCharges(0);
+      const initialPositions = LEVELS[0].enemies.map(enemy => ({
+        pos: enemy.start,
+        pathIndex: 0
+      }));
+      setEnemyPositions(initialPositions);
     }
   };
 
@@ -294,6 +557,85 @@ export default function App() {
         ))}
       </div>
 
+      {/* Level Splash Screen */}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeSplash}
+            className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-950/95 via-purple-900/95 to-pink-900/95 backdrop-blur-lg z-50 p-4 cursor-pointer"
+          >
+            <motion.div 
+              initial={{ scale: 0.5, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              className="text-center max-w-md w-full"
+            >
+              {/* Level Number */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 300 }}
+                className="mb-8"
+              >
+                <div className="text-white/60 text-sm font-black mb-2 tracking-wider">SEVİYE</div>
+                <div className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-500 drop-shadow-2xl">
+                  {currentLevel + 1}
+                </div>
+              </motion.div>
+
+              {/* Objectives */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border-2 border-white/20 shadow-2xl"
+              >
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Target className="w-6 h-6 text-yellow-400" />
+                  <h3 className="text-2xl font-black text-white">GÖREVLER</h3>
+                </div>
+                
+                <div className="space-y-3">
+                  {objectives.map((objective, index) => (
+                    <motion.div
+                      key={objective.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.6 + index * 0.1 }}
+                      className="flex items-center gap-3 bg-white/5 rounded-xl p-3 border border-white/10"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <span className="text-white font-black text-sm">{index + 1}</span>
+                      </div>
+                      <span className="text-white font-bold text-left flex-1">
+                        {objective.text} 
+                        {objective.type === 'coins' && ` ${objective.current}/${objective.target}`}
+                        {objective.type === 'max_moves' && ` 0/${objective.target}`}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Tap to start */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="mt-8 flex items-center justify-center gap-2 text-white/80"
+              >
+                <Hand className="w-5 h-5" />
+                <span className="font-bold">Başlamak için ekrana dokunun</span>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="px-4 py-4 relative z-10">
         <div className="flex items-center justify-between max-w-md mx-auto gap-2">
@@ -308,21 +650,6 @@ export default function App() {
             }}
           >
             <div className="text-2xl font-black tabular-nums">{moves}</div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent rounded-2xl"></div>
-          </motion.div>
-
-          {/* Coins Progress */}
-          <motion.div 
-            key={`${coinsCollectedInLevel}-${totalCoinsInLevel}`}
-            initial={{ scale: 1.2, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-gradient-to-br from-yellow-500 to-amber-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
-            style={{
-              boxShadow: '0 0 25px rgba(251, 191, 36, 0.5), 0 4px 15px rgba(0,0,0,0.3)',
-            }}
-          >
-            <Coins className="w-5 h-5" />
-            <div className="text-xl font-black tabular-nums">{coinsCollectedInLevel}/{totalCoinsInLevel}</div>
             <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent rounded-2xl"></div>
           </motion.div>
 
@@ -404,6 +731,75 @@ export default function App() {
         </div>
       </div>
 
+      {/* Objectives Sidebar */}
+      {!showSplash && (
+        <motion.div
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 space-y-2"
+        >
+          {objectives.map((objective, index) => (
+            <motion.div
+              key={objective.id}
+              initial={{ x: 50, opacity: 0 }}
+              animate={{ 
+                x: 0, 
+                opacity: 1,
+                scale: objective.completed ? [1, 1.1, 1] : 1
+              }}
+              transition={{ delay: index * 0.1 }}
+              className={`${
+                objective.completed 
+                  ? 'bg-gradient-to-br from-green-500 to-emerald-600' 
+                  : 'bg-gradient-to-br from-indigo-600/90 to-purple-700/90'
+              } backdrop-blur-md rounded-2xl p-3 border-2 ${
+                objective.completed ? 'border-green-300/50' : 'border-white/20'
+              } shadow-xl min-w-[140px]`}
+              style={{
+                boxShadow: objective.completed 
+                  ? '0 0 20px rgba(34, 197, 94, 0.5)' 
+                  : '0 0 15px rgba(99, 102, 241, 0.3)',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                {objective.completed ? (
+                  <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                    <Check className="w-4 h-4 text-green-600" strokeWidth={3} />
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                    {objective.type === 'max_moves' ? (
+                      <Footprints className="w-3 h-3 text-white" strokeWidth={3} />
+                    ) : objective.type === 'checkpoint' ? (
+                      <MapPin className="w-3 h-3 text-white" strokeWidth={3} />
+                    ) : objective.type === 'no_teleport' ? (
+                      <Zap className="w-3 h-3 text-white" strokeWidth={3} />
+                    ) : (
+                      <span className="text-white font-black text-xs">{index + 1}</span>
+                    )}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="text-white text-xs font-bold leading-tight">
+                    {objective.text}
+                  </div>
+                  {objective.type === 'coins' && (
+                    <div className="text-white font-black text-sm mt-0.5">
+                      {objective.current}/{objective.target}
+                    </div>
+                  )}
+                  {objective.type === 'max_moves' && (
+                    <div className={`font-black text-sm mt-0.5 ${objective.completed ? 'text-white' : 'text-red-200'}`}>
+                      {objective.current}/{objective.target}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+
       {/* Main Game Area */}
       <div 
         className="flex-1 flex items-center justify-center p-4 relative z-10"
@@ -430,6 +826,7 @@ export default function App() {
                   const isGoal = level.end.x === x && level.end.y === y;
                   const isWall = cell === 1;
                   const isCoin = cell === 4;
+                  const isCheckpoint = cell === 6;
                   const isEnemy = enemyPositions.some(enemy => enemy.pos.x === x && enemy.pos.y === y);
                   const coinKey = `${x}-${y}`;
                   const coinCollected = collectedCoins.has(coinKey);
@@ -449,6 +846,30 @@ export default function App() {
                         boxShadow: 'inset 0 -2px 8px rgba(0,0,0,0.4), inset 0 2px 8px rgba(255,255,255,0.2), 0 0 15px rgba(168, 85, 247, 0.3)',
                       } : {}}
                     >
+                      {/* Checkpoint */}
+                      {isCheckpoint && !visitedCheckpoint && (
+                        <motion.div
+                          animate={{ 
+                            scale: [1, 1.15, 1],
+                            y: [-1, 1, -1]
+                          }}
+                          transition={{ 
+                            duration: 1.5,
+                            repeat: Infinity
+                          }}
+                          className="size-full flex items-center justify-center"
+                        >
+                          <div
+                            className="w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center border-2 border-orange-200"
+                            style={{
+                              boxShadow: '0 0 15px rgba(251, 146, 60, 0.8)',
+                            }}
+                          >
+                            <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" strokeWidth={3} fill="white" />
+                          </div>
+                        </motion.div>
+                      )}
+
                       {/* Coin */}
                       {isCoin && !coinCollected && (
                         <motion.div
@@ -743,7 +1164,7 @@ export default function App() {
               whileTap={{ scale: 0.95 }}
               onClick={() => movePlayer(0, -1)}
               className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full flex items-center justify-center transition-all touch-manipulation disabled:opacity-30 shadow-2xl border-3 border-cyan-300/50"
-              disabled={won || gameOver}
+              disabled={won || gameOver || showSplash}
               style={{
                 boxShadow: '0 0 25px rgba(34, 211, 238, 0.6), inset 0 3px 10px rgba(255,255,255,0.3)',
               }}
@@ -759,7 +1180,7 @@ export default function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => movePlayer(-1, 0)}
                 className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full flex items-center justify-center transition-all touch-manipulation disabled:opacity-30 shadow-2xl border-3 border-cyan-300/50"
-                disabled={won || gameOver}
+                disabled={won || gameOver || showSplash}
                 style={{
                   boxShadow: '0 0 25px rgba(34, 211, 238, 0.6), inset 0 3px 10px rgba(255,255,255,0.3)',
                 }}
@@ -773,7 +1194,7 @@ export default function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => movePlayer(0, 1)}
                 className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full flex items-center justify-center transition-all touch-manipulation disabled:opacity-30 shadow-2xl border-3 border-cyan-300/50"
-                disabled={won || gameOver}
+                disabled={won || gameOver || showSplash}
                 style={{
                   boxShadow: '0 0 25px rgba(34, 211, 238, 0.6), inset 0 3px 10px rgba(255,255,255,0.3)',
                 }}
@@ -787,7 +1208,7 @@ export default function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => movePlayer(1, 0)}
                 className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full flex items-center justify-center transition-all touch-manipulation disabled:opacity-30 shadow-2xl border-3 border-cyan-300/50"
-                disabled={won || gameOver}
+                disabled={won || gameOver || showSplash}
                 style={{
                   boxShadow: '0 0 25px rgba(34, 211, 238, 0.6), inset 0 3px 10px rgba(255,255,255,0.3)',
                 }}
