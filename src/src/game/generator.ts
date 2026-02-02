@@ -281,10 +281,23 @@ function generateCoinsAndDoors(
   const actualLevel = params.seed === 1050 ? 3 : level;
   
   if (actualLevel < 2) return { coins, doors };
+
+  if (actualLevel === 7) {
+    const fixedCoins: Coin[] = [
+      { position: { x: 5, y: 1 }, color: 'red' },
+      { position: { x: 3, y: 7 }, color: 'blue' },
+    ];
+    const fixedDoors: Door[] = [
+      { position: { x: 9, y: 1 }, color: 'red' },
+      { position: { x: 3, y: 11 }, color: 'blue' },
+    ];
+
+    return { coins: fixedCoins, doors: fixedDoors };
+  }
   
   // Determine number of coin/door pairs based on level
   const basePairs = Math.min(Math.floor((actualLevel - 1) / 3) + 1, 3);
-  const numPairs = actualLevel === 7 ? 2 : basePairs;
+  const numPairs = basePairs;
   
   if (numPairs === 0) return { coins, doors };
   
@@ -438,44 +451,36 @@ function buildLevel7Grid(gridWidth: number, gridHeight: number): ('wall' | 'path
     .fill(null)
     .map(() => Array(gridWidth).fill('wall'));
 
-  // Open interior area
-  for (let y = 1; y < gridHeight - 1; y++) {
-    for (let x = 1; x < gridWidth - 1; x++) {
-      grid[y][x] = 'path';
+  const carveLine = (x1: number, y1: number, x2: number, y2: number) => {
+    if (x1 === x2) {
+      const [start, end] = y1 < y2 ? [y1, y2] : [y2, y1];
+      for (let y = start; y <= end; y++) grid[y][x1] = 'path';
+      return;
     }
-  }
-
-  // Add pillar walls to create frequent stopping points
-  for (let y = 2; y <= gridHeight - 3; y += 2) {
-    for (let x = 2; x <= gridWidth - 3; x += 2) {
-      grid[y][x] = 'wall';
+    if (y1 === y2) {
+      const [start, end] = x1 < x2 ? [x1, x2] : [x2, x1];
+      for (let x = start; x <= end; x++) grid[y1][x] = 'path';
     }
-  }
+  };
 
-  // Add two crossing wall lines to shape the flow
-  for (let y = 1; y < gridHeight - 1; y++) {
-    grid[y][6] = 'wall';
-  }
-  for (let x = 1; x < gridWidth - 1; x++) {
-    grid[6][x] = 'wall';
-  }
+  // Main route (snake) with clear stopping points
+  carveLine(1, 1, 1, 5);
+  carveLine(1, 5, 5, 5);
+  carveLine(5, 5, 5, 1);
+  carveLine(5, 1, 9, 1);
+  carveLine(9, 1, 9, 7);
+  carveLine(9, 7, 3, 7);
+  carveLine(3, 7, 3, 11);
+  carveLine(3, 11, 11, 11);
 
-  // Open gaps in the crossing walls
-  const gaps: Position[] = [
-    { x: 6, y: 2 },
-    { x: 6, y: 5 },
-    { x: 6, y: 8 },
-    { x: 6, y: 10 },
-    { x: 2, y: 6 },
-    { x: 4, y: 6 },
-    { x: 8, y: 6 },
-    { x: 10, y: 6 },
-  ];
-  gaps.forEach(({ x, y }) => {
-    if (y >= 0 && y < gridHeight && x >= 0 && x < gridWidth) {
-      grid[y][x] = 'path';
-    }
-  });
+  // Small side pockets to avoid long slides and add control
+  carveLine(2, 3, 2, 4);
+  carveLine(4, 2, 4, 3);
+  carveLine(7, 2, 7, 3);
+  carveLine(10, 3, 10, 4);
+  carveLine(8, 8, 8, 9);
+  carveLine(6, 9, 7, 9);
+  carveLine(5, 10, 6, 10);
 
   // Ensure start/exit neighborhoods are open
   grid[1][1] = 'path';
