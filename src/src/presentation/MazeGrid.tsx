@@ -45,22 +45,7 @@ export const MazeGrid = memo(function MazeGrid({ grid, playerPos, exitPos, coins
           gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
         }}
       >
-        {grid.map((row, y) =>
-          row.map((cell, x) => {
-            // Don't render player and exit in the grid cells
-            const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
-            return (
-              <MazeCell
-                key={`${x}-${y}`}
-                type={cellType}
-                onClick={() => {
-                  // Debug: print grid coordinates
-                  console.log('cell', { x, y });
-                }}
-              />
-            );
-          })
-        )}
+        <StaticGrid grid={grid} />
         
         {/* Coins */}
         {coins.map((coin) => {
@@ -284,5 +269,32 @@ const MazeCell = memo(function MazeCell({ type, onClick }: MazeCellProps) {
       className={`${baseClass} bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30`}
       onClick={onClick}
     />
+  );
+});
+
+interface StaticGridProps {
+  grid: CellType[][];
+}
+
+const StaticGrid = memo(function StaticGrid({ grid }: StaticGridProps) {
+  return (
+    <>
+      {grid.map((row, y) =>
+        row.map((cell, x) => {
+          // Don't render player and exit in the grid cells
+          const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
+          return (
+            <MazeCell
+              key={`${x}-${y}`}
+              type={cellType}
+              onClick={() => {
+                // Debug: print grid coordinates
+                console.log('cell', { x, y });
+              }}
+            />
+          );
+        })
+      )}
+    </>
   );
 });
