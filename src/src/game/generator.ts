@@ -75,6 +75,21 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
       { position: { x: 3, y: 15 }, color: 'green' },
     ],
   },
+  {
+    level: 19,
+    seed: 1334,
+    build: buildLevel19Grid,
+    coins: [
+      { position: { x: 1, y: 7 }, color: 'red' },
+      { position: { x: 15, y: 9 }, color: 'blue' },
+      { position: { x: 3, y: 17 }, color: 'green' },
+    ],
+    doors: [
+      { position: { x: 11, y: 1 }, color: 'red' },
+      { position: { x: 7, y: 9 }, color: 'blue' },
+      { position: { x: 5, y: 19 }, color: 'green' },
+    ],
+  },
 ];
 
 function getSpecialByLevel(level: number): SpecialLevelConfig | undefined {
@@ -604,6 +619,30 @@ function buildLevel18Grid(gridWidth: number, gridHeight: number): Grid {
     { x1: 17, y1: 11, x2: 17, y2: 15 },
     { x1: 17, y1: 15, x2: 3, y2: 15 },
     { x1: 3, y1: 15, x2: 3, y2: 19 },
+    { x1: 3, y1: 19, x2: 19, y2: 19 },
+  ];
+
+  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
+  openStartExit(grid, gridWidth, gridHeight);
+  return grid;
+}
+
+/**
+ * Build a hand-shaped Level 19 grid aligned to slide mechanics
+ */
+function buildLevel19Grid(gridWidth: number, gridHeight: number): Grid {
+  const segments: GridSegment[] = [
+    { x1: 1, y1: 1, x2: 1, y2: 7 },
+    { x1: 1, y1: 7, x2: 11, y2: 7 },
+    { x1: 11, y1: 7, x2: 11, y2: 1 },
+    { x1: 11, y1: 1, x2: 19, y2: 1 },
+    { x1: 19, y1: 1, x2: 19, y2: 9 },
+    { x1: 19, y1: 9, x2: 7, y2: 9 },
+    { x1: 7, y1: 9, x2: 7, y2: 13 },
+    { x1: 7, y1: 13, x2: 15, y2: 13 },
+    { x1: 15, y1: 13, x2: 15, y2: 17 },
+    { x1: 15, y1: 17, x2: 3, y2: 17 },
+    { x1: 3, y1: 17, x2: 3, y2: 19 },
     { x1: 3, y1: 19, x2: 19, y2: 19 },
   ];
 
