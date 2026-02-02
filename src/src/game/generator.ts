@@ -284,8 +284,8 @@ function generateCoinsAndDoors(
 
   if (actualLevel === 7) {
     const fixedCoins: Coin[] = [
-      { position: { x: 5, y: 1 }, color: 'red' },
-      { position: { x: 3, y: 7 }, color: 'blue' },
+      { position: { x: 1, y: 5 }, color: 'red' },
+      { position: { x: 11, y: 9 }, color: 'blue' },
     ];
     const fixedDoors: Door[] = [
       { position: { x: 9, y: 1 }, color: 'red' },
@@ -463,24 +463,15 @@ function buildLevel7Grid(gridWidth: number, gridHeight: number): ('wall' | 'path
     }
   };
 
-  // Main route (snake) with clear stopping points
+  // Main route (snake) aligned to slide mechanics
   carveLine(1, 1, 1, 5);
-  carveLine(1, 5, 5, 5);
-  carveLine(5, 5, 5, 1);
-  carveLine(5, 1, 9, 1);
-  carveLine(9, 1, 9, 7);
-  carveLine(9, 7, 3, 7);
-  carveLine(3, 7, 3, 11);
+  carveLine(1, 5, 9, 5);
+  carveLine(9, 5, 9, 1);
+  carveLine(9, 1, 11, 1);
+  carveLine(11, 1, 11, 9);
+  carveLine(11, 9, 3, 9);
+  carveLine(3, 9, 3, 11);
   carveLine(3, 11, 11, 11);
-
-  // Small side pockets to avoid long slides and add control
-  carveLine(2, 3, 2, 4);
-  carveLine(4, 2, 4, 3);
-  carveLine(7, 2, 7, 3);
-  carveLine(10, 3, 10, 4);
-  carveLine(8, 8, 8, 9);
-  carveLine(6, 9, 7, 9);
-  carveLine(5, 10, 6, 10);
 
   // Ensure start/exit neighborhoods are open
   grid[1][1] = 'path';
