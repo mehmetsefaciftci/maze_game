@@ -31,6 +31,13 @@ type SpecialLevelConfig = {
   doors: Door[];
 };
 
+type PathCacheEntry = {
+  path: Position[];
+  distanceMap: Map<string, number>;
+};
+
+const pathCache = new Map<string, PathCacheEntry>();
+
 const SPECIAL_LEVELS: SpecialLevelConfig[] = [
   {
     level: 7,
@@ -105,36 +112,6 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
       { position: { x: 3, y: 19 }, color: 'green' },
     ],
   },
-  {
-    level: 23,
-    seed: 1362,
-    build: buildLevel23Grid,
-    coins: [
-      { position: { x: 1, y: 5 }, color: 'red' },
-      { position: { x: 13, y: 9 }, color: 'blue' },
-      { position: { x: 5, y: 17 }, color: 'green' },
-    ],
-    doors: [
-      { position: { x: 11, y: 1 }, color: 'red' },
-      { position: { x: 7, y: 11 }, color: 'blue' },
-      { position: { x: 5, y: 19 }, color: 'green' },
-    ],
-  },
-  {
-    level: 22,
-    seed: 1355,
-    build: buildLevel22Grid,
-    coins: [
-      { position: { x: 1, y: 5 }, color: 'red' },
-      { position: { x: 17, y: 9 }, color: 'blue' },
-      { position: { x: 7, y: 15 }, color: 'green' },
-    ],
-    doors: [
-      { position: { x: 13, y: 1 }, color: 'red' },
-      { position: { x: 9, y: 9 }, color: 'blue' },
-      { position: { x: 3, y: 19 }, color: 'green' },
-    ],
-  },
 ];
 
 function getSpecialByLevel(level: number): SpecialLevelConfig | undefined {
@@ -143,6 +120,13 @@ function getSpecialByLevel(level: number): SpecialLevelConfig | undefined {
 
 function getSpecialBySeed(seed: number): SpecialLevelConfig | undefined {
   return SPECIAL_LEVELS.find((config) => config.seed === seed);
+}
+
+function inferLevelFromSeed(seed: number): number {
+  if (seed === 1050) return 3;
+  const special = getSpecialBySeed(seed);
+  if (special) return special.level;
+  return Math.floor((seed - 1000) / 7);
 }
 
 /**
@@ -159,79 +143,86 @@ export function generateMaze(params: LevelParams): {
 } {
   const { gridSize, seed } = params;
   const rng = new SeededRandom(seed);
+  const specialBySeed = getSpecialBySeed(params.seed);
 
-  // Create grid of cells
-  const cells: Cell[][] = [];
-  for (let y = 0; y < gridSize; y++) {
-    cells[y] = [];
-    for (let x = 0; x < gridSize; x++) {
-      cells[y][x] = {
-        x,
-        y,
-        visited: false,
-        walls: { top: true, right: true, bottom: true, left: true },
-      };
-    }
-  }
-
-  // DFS maze generation
-  const stack: Cell[] = [];
-  const startCell = cells[0][0];
-  startCell.visited = true;
-  stack.push(startCell);
-
-  while (stack.length > 0) {
-    const current = stack[stack.length - 1];
-    const neighbors = getUnvisitedNeighbors(current, cells, gridSize);
-
-    if (neighbors.length > 0) {
-      // Pick random neighbor
-      const next = neighbors[rng.nextInt(0, neighbors.length)];
-      
-      // Remove wall between current and next
-      removeWall(current, next);
-      
-      next.visited = true;
-      stack.push(next);
-    } else {
-      stack.pop();
-    }
-  }
-
-  // Convert to CellType grid
   const gridWidth = gridSize * 2 + 1;
   const gridHeight = gridSize * 2 + 1;
-  let grid: Grid = Array(gridHeight)
-    .fill(null)
-    .map(() => Array(gridWidth).fill('wall'));
+  let grid: Grid;
 
-  // Fill paths
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
-      const cell = cells[y][x];
-      const gx = x * 2 + 1;
-      const gy = y * 2 + 1;
-      
-      grid[gy][gx] = 'path';
-      
-      if (!cell.walls.right && x < gridSize - 1) {
-        grid[gy][gx + 1] = 'path';
-      }
-      if (!cell.walls.bottom && y < gridSize - 1) {
-        grid[gy + 1][gx] = 'path';
+  if (specialBySeed) {
+    grid = specialBySeed.build(gridWidth, gridHeight);
+  } else {
+    // Create grid of cells
+    const cells: Cell[][] = [];
+    for (let y = 0; y < gridSize; y++) {
+      cells[y] = [];
+      for (let x = 0; x < gridSize; x++) {
+        cells[y][x] = {
+          x,
+          y,
+          visited: false,
+          walls: { top: true, right: true, bottom: true, left: true },
+        };
       }
     }
-  }
 
-  // Remove some vertical walls in the middle area for better flow
-  // This creates more open passages in the central area
-  const midX = Math.floor(gridWidth / 2);
-  for (let y = 3; y < gridHeight - 3; y += 2) {
-    if (grid[y][midX] === 'wall' && 
-        grid[y][midX - 1] === 'path' && 
-        grid[y][midX + 1] === 'path') {
-      // Only remove if it connects two path cells
-      grid[y][midX] = 'path';
+    // DFS maze generation
+    const stack: Cell[] = [];
+    const startCell = cells[0][0];
+    startCell.visited = true;
+    stack.push(startCell);
+
+    while (stack.length > 0) {
+      const current = stack[stack.length - 1];
+      const neighbors = getUnvisitedNeighbors(current, cells, gridSize);
+
+      if (neighbors.length > 0) {
+        // Pick random neighbor
+        const next = neighbors[rng.nextInt(0, neighbors.length)];
+        
+        // Remove wall between current and next
+        removeWall(current, next);
+        
+        next.visited = true;
+        stack.push(next);
+      } else {
+        stack.pop();
+      }
+    }
+
+    // Convert to CellType grid
+    grid = Array(gridHeight)
+      .fill(null)
+      .map(() => Array(gridWidth).fill('wall'));
+
+    // Fill paths
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        const cell = cells[y][x];
+        const gx = x * 2 + 1;
+        const gy = y * 2 + 1;
+        
+        grid[gy][gx] = 'path';
+        
+        if (!cell.walls.right && x < gridSize - 1) {
+          grid[gy][gx + 1] = 'path';
+        }
+        if (!cell.walls.bottom && y < gridSize - 1) {
+          grid[gy + 1][gx] = 'path';
+        }
+      }
+    }
+
+    // Remove some vertical walls in the middle area for better flow
+    // This creates more open passages in the central area
+    const midX = Math.floor(gridWidth / 2);
+    for (let y = 3; y < gridHeight - 3; y += 2) {
+      if (grid[y][midX] === 'wall' && 
+          grid[y][midX - 1] === 'path' && 
+          grid[y][midX + 1] === 'path') {
+        // Only remove if it connects two path cells
+        grid[y][midX] = 'path';
+      }
     }
   }
 
@@ -239,11 +230,13 @@ export function generateMaze(params: LevelParams): {
   const startPos: Position = { x: 1, y: 1 };
   const exitPos: Position = { x: gridWidth - 2, y: gridHeight - 2 };
 
-  const specialBySeed = getSpecialBySeed(params.seed);
-  if (specialBySeed) {
-    const customGrid = specialBySeed.build(gridWidth, gridHeight);
-    if (findShortestPath(customGrid, startPos, exitPos) > 0) {
-      grid = customGrid;
+  const pathCacheKey = `${seed}|${gridWidth}x${gridHeight}|${startPos.x},${startPos.y}|${exitPos.x},${exitPos.y}`;
+
+  const inferredLevel = inferLevelFromSeed(seed);
+  if (!specialBySeed && inferredLevel >= 22) {
+    const slidePath = findShortestSlidePathPositions(grid, startPos, exitPos);
+    if (slidePath.length === 0) {
+      grid = buildSlideSnakeGrid(gridWidth, gridHeight);
     }
   }
 
@@ -251,7 +244,7 @@ export function generateMaze(params: LevelParams): {
   const solutionLength = findShortestPath(grid, startPos, exitPos);
 
   // Generate coins and doors based on level
-  const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng);
+  const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng, pathCacheKey);
   if (!specialBySeed) {
     enforceCoinBeforeDoor(grid, startPos, exitPos, coins, doors);
   }
@@ -316,10 +309,11 @@ function findShortestPath(
     .map(() => Array(width).fill(false));
   
   const queue: { pos: Position; dist: number }[] = [{ pos: start, dist: 0 }];
+  let queueIndex = 0;
   visited[start.y][start.x] = true;
 
-  while (queue.length > 0) {
-    const { pos, dist } = queue.shift()!;
+  while (queueIndex < queue.length) {
+    const { pos, dist } = queue[queueIndex++];
 
     if (pos.x === end.x && pos.y === end.y) {
       return dist;
@@ -390,8 +384,13 @@ export function calculateMoveLimit(solutionLength: number, level: number): numbe
   
   // Decrease buffer as level increases (harder)
   const levelPenalty = Math.floor(level * 0.5);
+
+  let extra = 0;
+  if (level === 22) {
+    extra = 8;
+  }
   
-  return Math.max(solutionLength + buffer - levelPenalty, solutionLength + 2);
+  return Math.max(solutionLength + buffer - levelPenalty + extra, solutionLength + 2);
 }
 
 /**
@@ -403,7 +402,8 @@ function generateCoinsAndDoors(
   startPos: Position,
   exitPos: Position,
   params: LevelParams,
-  rng: SeededRandom
+  rng: SeededRandom,
+  pathCacheKey: string
 ): { coins: Coin[]; doors: Door[] } {
   const coins: Coin[] = [];
   const doors: Door[] = [];
@@ -418,7 +418,7 @@ function generateCoinsAndDoors(
   if (actualLevel < 2) return { coins, doors };
 
   if (actualLevel >= 22) {
-    return generateCoinsAndDoorsByShortestPath(grid, startPos, exitPos, actualLevel, rng);
+    return generateCoinsAndDoorsByShortestPath(grid, startPos, exitPos, actualLevel, rng, pathCacheKey);
   }
 
   const special = getSpecialBySeed(params.seed);
@@ -436,7 +436,7 @@ function generateCoinsAndDoors(
   const usedColors = colors.slice(0, numPairs);
   
   // Find main path from start to exit using BFS
-  const mainPath = findPathPositions(grid, startPos, exitPos);
+  const { path: mainPath, distanceMap } = getPathAndDistanceMap(grid, startPos, exitPos, pathCacheKey);
   const mainPathSet = new Set(mainPath.map(p => `${p.x},${p.y}`));
   
   // Get all valid path positions (excluding start and exit)
@@ -458,15 +458,15 @@ function generateCoinsAndDoors(
   const offPathPositions = allPathPositions.filter(p => !mainPathSet.has(`${p.x},${p.y}`));
   
   // Calculate distances from start for strategic placement
-  const distanceMap = calculateDistanceMap(grid, startPos);
+  const distanceMapRef = distanceMap;
   
   // Strategic placement: Coin must be between start and door
   // This ensures player collects coin before reaching the door
   
   // Sort main path by distance from start
   mainPathPositions.sort((a, b) => {
-    const distA = distanceMap.get(`${a.x},${a.y}`) || 0;
-    const distB = distanceMap.get(`${b.x},${b.y}`) || 0;
+    const distA = distanceMapRef.get(`${a.x},${a.y}`) || 0;
+    const distB = distanceMapRef.get(`${b.x},${b.y}`) || 0;
     return distA - distB; // Closer to start first
   });
   
@@ -517,10 +517,11 @@ function findPathPositions(
   const visited = new Map<string, Position | null>();
   
   const queue: Position[] = [start];
+  let queueIndex = 0;
   visited.set(`${start.x},${start.y}`, null);
   
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex++];
     
     if (current.x === end.x && current.y === end.y) {
       // Reconstruct path
@@ -574,12 +575,78 @@ function getMinDistanceToMainPath(pos: Position, mainPath: Position[]): number {
   return minDist;
 }
 
+function getPathAndDistanceMap(
+  grid: Grid,
+  start: Position,
+  end: Position,
+  cacheKey: string
+): PathCacheEntry {
+  const cached = pathCache.get(cacheKey);
+  if (cached) return cached;
+
+  const height = grid.length;
+  const width = grid[0].length;
+  const visited = new Map<string, Position | null>();
+  const distanceMap = new Map<string, number>();
+  const queue: Position[] = [start];
+  let queueIndex = 0;
+
+  visited.set(`${start.x},${start.y}`, null);
+  distanceMap.set(`${start.x},${start.y}`, 0);
+
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex++];
+    const currentKey = `${current.x},${current.y}`;
+    const currentDist = distanceMap.get(currentKey) ?? 0;
+
+    const directions = [
+      { x: 0, y: -1 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+    ];
+
+    for (const dir of directions) {
+      const next = { x: current.x + dir.x, y: current.y + dir.y };
+      const key = `${next.x},${next.y}`;
+
+      if (
+        next.x >= 0 &&
+        next.x < width &&
+        next.y >= 0 &&
+        next.y < height &&
+        !visited.has(key) &&
+        grid[next.y][next.x] === 'path'
+      ) {
+        visited.set(key, current);
+        distanceMap.set(key, currentDist + 1);
+        queue.push(next);
+      }
+    }
+  }
+
+  const path: Position[] = [];
+  let pos: Position | null = end;
+  if (visited.has(`${end.x},${end.y}`)) {
+    while (pos) {
+      path.unshift(pos);
+      const key = `${pos.x},${pos.y}`;
+      pos = visited.get(key) || null;
+    }
+  }
+
+  const entry = { path, distanceMap };
+  pathCache.set(cacheKey, entry);
+  return entry;
+}
+
 function generateCoinsAndDoorsByShortestPath(
   grid: Grid,
   startPos: Position,
   exitPos: Position,
   level: number,
-  rng: SeededRandom
+  rng: SeededRandom,
+  pathCacheKey: string
 ): { coins: Coin[]; doors: Door[] } {
   const coins: Coin[] = [];
   const doors: Door[] = [];
@@ -589,7 +656,7 @@ function generateCoinsAndDoorsByShortestPath(
 
   const slidePath = findShortestSlidePathPositions(grid, startPos, exitPos);
   if (slidePath.length < 3) {
-    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng);
+    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng, pathCacheKey);
   }
 
   const usablePath = slidePath.filter(
@@ -598,7 +665,7 @@ function generateCoinsAndDoorsByShortestPath(
       !(pos.x === exitPos.x && pos.y === exitPos.y)
   );
   if (usablePath.length < 2) {
-    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng);
+    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng, pathCacheKey);
   }
 
   let pairs = Math.min(maxPairs, Math.floor(usablePath.length / 3));
@@ -635,7 +702,8 @@ function generateCoinsAndDoorsFallback(
   startPos: Position,
   exitPos: Position,
   maxPairs: number,
-  rng: SeededRandom
+  rng: SeededRandom,
+  pathCacheKey: string
 ): { coins: Coin[]; doors: Door[] } {
   const coins: Coin[] = [];
   const doors: Door[] = [];
@@ -643,7 +711,7 @@ function generateCoinsAndDoorsFallback(
   const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
   const usedColors = colors.slice(0, Math.max(1, maxPairs));
 
-  const mainPath = findPathPositions(grid, startPos, exitPos);
+  const { path: mainPath } = getPathAndDistanceMap(grid, startPos, exitPos, pathCacheKey);
   const usablePath = mainPath.filter(
     (pos) =>
       !(pos.x === startPos.x && pos.y === startPos.y) &&
@@ -724,6 +792,7 @@ function findShortestSlidePathPositions(
   const width = grid[0]?.length ?? 0;
   const visited = new Map<string, Position | null>();
   const queue: Position[] = [start];
+  let queueIndex = 0;
   visited.set(`${start.x},${start.y}`, null);
 
   const directions = [
@@ -749,8 +818,8 @@ function findShortestSlidePathPositions(
     return { x, y };
   };
 
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex++];
     if (current.x === end.x && current.y === end.y) {
       const path: Position[] = [];
       let pos: Position | null = current;
@@ -810,6 +879,27 @@ function openStartExit(grid: Grid, gridWidth: number, gridHeight: number): void 
   grid[gridHeight - 2][gridWidth - 2] = 'path';
   grid[gridHeight - 2][gridWidth - 3] = 'path';
   grid[gridHeight - 3][gridWidth - 2] = 'path';
+}
+
+function buildSlideSnakeGrid(gridWidth: number, gridHeight: number): Grid {
+  const segments: GridSegment[] = [];
+  const maxX = gridWidth - 2;
+  const maxY = gridHeight - 2;
+  let x = 1;
+  let down = true;
+
+  while (x <= maxX) {
+    segments.push({ x1: x, y1: down ? 1 : maxY, x2: x, y2: down ? maxY : 1 });
+    if (x + 2 <= maxX) {
+      segments.push({ x1: x, y1: down ? maxY : 1, x2: x + 2, y2: down ? maxY : 1 });
+    }
+    x += 2;
+    down = !down;
+  }
+
+  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
+  openStartExit(grid, gridWidth, gridHeight);
+  return grid;
 }
 
 /**
@@ -1000,10 +1090,11 @@ function calculateDistanceMap(
   const distanceMap = new Map<string, number>();
   
   const queue: { pos: Position; dist: number }[] = [{ pos: start, dist: 0 }];
+  let queueIndex = 0;
   distanceMap.set(`${start.x},${start.y}`, 0);
   
-  while (queue.length > 0) {
-    const { pos, dist } = queue.shift()!;
+  while (queueIndex < queue.length) {
+    const { pos, dist } = queue[queueIndex++];
     
     const directions = [
       { x: 0, y: -1 },
