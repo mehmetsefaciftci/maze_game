@@ -49,7 +49,16 @@ export const MazeGrid = memo(function MazeGrid({ grid, playerPos, exitPos, coins
           row.map((cell, x) => {
             // Don't render player and exit in the grid cells
             const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
-            return <MazeCell key={`${x}-${y}`} type={cellType} />;
+            return (
+              <MazeCell
+                key={`${x}-${y}`}
+                type={cellType}
+                onClick={() => {
+                  // Debug: print grid coordinates
+                  console.log('cell', { x, y });
+                }}
+              />
+            );
           })
         )}
         
@@ -251,9 +260,10 @@ export const MazeGrid = memo(function MazeGrid({ grid, playerPos, exitPos, coins
 
 interface MazeCellProps {
   type: CellType;
+  onClick?: () => void;
 }
 
-const MazeCell = memo(function MazeCell({ type }: MazeCellProps) {
+const MazeCell = memo(function MazeCell({ type, onClick }: MazeCellProps) {
   const baseClass = 'w-6 h-6 rounded-sm transition-all duration-150';
   
   if (type === 'wall') {
@@ -263,12 +273,16 @@ const MazeCell = memo(function MazeCell({ type }: MazeCellProps) {
         style={{
           boxShadow: 'inset 0 -2px 4px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
         }}
+        onClick={onClick}
       />
     );
   }
   
   // path
   return (
-    <div className={`${baseClass} bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30`} />
+    <div
+      className={`${baseClass} bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30`}
+      onClick={onClick}
+    />
   );
 });

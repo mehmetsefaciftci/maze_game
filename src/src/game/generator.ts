@@ -106,13 +106,28 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     ],
   },
   {
+    level: 23,
+    seed: 1362,
+    build: buildLevel23Grid,
+    coins: [
+      { position: { x: 1, y: 5 }, color: 'red' },
+      { position: { x: 13, y: 9 }, color: 'blue' },
+      { position: { x: 5, y: 17 }, color: 'green' },
+    ],
+    doors: [
+      { position: { x: 11, y: 1 }, color: 'red' },
+      { position: { x: 7, y: 11 }, color: 'blue' },
+      { position: { x: 5, y: 19 }, color: 'green' },
+    ],
+  },
+  {
     level: 22,
     seed: 1355,
     build: buildLevel22Grid,
     coins: [
       { position: { x: 1, y: 5 }, color: 'red' },
-      { position: { x: 19, y: 9 }, color: 'blue' },
-      { position: { x: 9, y: 15 }, color: 'green' },
+      { position: { x: 17, y: 9 }, color: 'blue' },
+      { position: { x: 7, y: 15 }, color: 'green' },
     ],
     doors: [
       { position: { x: 13, y: 1 }, color: 'red' },
@@ -402,6 +417,10 @@ function generateCoinsAndDoors(
   
   if (actualLevel < 2) return { coins, doors };
 
+  if (actualLevel >= 22) {
+    return generateCoinsAndDoorsByShortestPath(grid, startPos, exitPos, actualLevel, rng);
+  }
+
   const special = getSpecialBySeed(params.seed);
   if (special) {
     return { coins: special.coins, doors: special.doors };
@@ -555,6 +574,104 @@ function getMinDistanceToMainPath(pos: Position, mainPath: Position[]): number {
   return minDist;
 }
 
+function generateCoinsAndDoorsByShortestPath(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  level: number,
+  rng: SeededRandom
+): { coins: Coin[]; doors: Door[] } {
+  const coins: Coin[] = [];
+  const doors: Door[] = [];
+
+  const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+  const maxPairs = Math.min(Math.floor((level - 1) / 3) + 1, colors.length);
+
+  const slidePath = findShortestSlidePathPositions(grid, startPos, exitPos);
+  if (slidePath.length < 3) {
+    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng);
+  }
+
+  const usablePath = slidePath.filter(
+    (pos) =>
+      !(pos.x === startPos.x && pos.y === startPos.y) &&
+      !(pos.x === exitPos.x && pos.y === exitPos.y)
+  );
+  if (usablePath.length < 2) {
+    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng);
+  }
+
+  let pairs = Math.min(maxPairs, Math.floor(usablePath.length / 3));
+  if (pairs === 0) pairs = 1;
+  if (pairs <= 0) return { coins, doors };
+
+  const segmentSize = Math.floor(usablePath.length / (pairs + 1));
+  for (let i = 0; i < pairs; i++) {
+    const color = colors[i];
+    const segStart = i * segmentSize;
+    const segEnd = Math.min((i + 1) * segmentSize, usablePath.length - 1);
+    const segLen = segEnd - segStart;
+    if (segLen < 3) continue;
+
+    const coinStart = segStart;
+    const coinEnd = segStart + Math.max(1, Math.floor(segLen / 2) - 1);
+    const doorStart = Math.min(coinEnd + 1, segEnd);
+
+    const coinIndex = rng.nextInt(coinStart, coinEnd + 1);
+    const doorIndex = rng.nextInt(doorStart, segEnd + 1);
+
+    const coinPos = usablePath[coinIndex];
+    const doorPos = usablePath[doorIndex];
+
+    coins.push({ position: { x: coinPos.x, y: coinPos.y }, color });
+    doors.push({ position: { x: doorPos.x, y: doorPos.y }, color });
+  }
+
+  return { coins, doors };
+}
+
+function generateCoinsAndDoorsFallback(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  maxPairs: number,
+  rng: SeededRandom
+): { coins: Coin[]; doors: Door[] } {
+  const coins: Coin[] = [];
+  const doors: Door[] = [];
+
+  const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+  const usedColors = colors.slice(0, Math.max(1, maxPairs));
+
+  const mainPath = findPathPositions(grid, startPos, exitPos);
+  const usablePath = mainPath.filter(
+    (pos) =>
+      !(pos.x === startPos.x && pos.y === startPos.y) &&
+      !(pos.x === exitPos.x && pos.y === exitPos.y)
+  );
+  if (usablePath.length < 2) return { coins, doors };
+
+  const segmentSize = Math.floor(usablePath.length / (usedColors.length + 1));
+  for (let i = 0; i < usedColors.length; i++) {
+    const color = usedColors[i];
+    const segStart = i * segmentSize;
+    const segEnd = Math.min((i + 1) * segmentSize, usablePath.length - 1);
+    const segLen = segEnd - segStart;
+    if (segLen < 2) continue;
+
+    const coinIndex = rng.nextInt(segStart, Math.max(segStart, segEnd - 1) + 1);
+    const doorIndex = rng.nextInt(Math.min(segEnd, coinIndex + 1), segEnd + 1);
+
+    const coinPos = usablePath[coinIndex];
+    const doorPos = usablePath[doorIndex];
+
+    coins.push({ position: { x: coinPos.x, y: coinPos.y }, color });
+    doors.push({ position: { x: doorPos.x, y: doorPos.y }, color });
+  }
+
+  return { coins, doors };
+}
+
 function enforceCoinBeforeDoor(
   grid: Grid,
   startPos: Position,
@@ -596,6 +713,66 @@ function enforceCoinBeforeDoor(
       door.position = { x: target.x, y: target.y };
     }
   }
+}
+
+function findShortestSlidePathPositions(
+  grid: Grid,
+  start: Position,
+  end: Position
+): Position[] {
+  const height = grid.length;
+  const width = grid[0]?.length ?? 0;
+  const visited = new Map<string, Position | null>();
+  const queue: Position[] = [start];
+  visited.set(`${start.x},${start.y}`, null);
+
+  const directions = [
+    { x: 0, y: -1 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: -1, y: 0 },
+  ];
+
+  const isInBounds = (x: number, y: number) => x >= 0 && x < width && y >= 0 && y < height;
+
+  const slide = (pos: Position, dir: { x: number; y: number }) => {
+    let x = pos.x;
+    let y = pos.y;
+    while (true) {
+      const nx = x + dir.x;
+      const ny = y + dir.y;
+      if (!isInBounds(nx, ny)) break;
+      if (grid[ny][nx] === 'wall') break;
+      x = nx;
+      y = ny;
+    }
+    return { x, y };
+  };
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (current.x === end.x && current.y === end.y) {
+      const path: Position[] = [];
+      let pos: Position | null = current;
+      while (pos) {
+        path.unshift(pos);
+        const key: string = `${pos.x},${pos.y}`;
+        pos = visited.get(key) || null;
+      }
+      return path;
+    }
+
+    for (const dir of directions) {
+      const next = slide(current, dir);
+      if (next.x === current.x && next.y === current.y) continue;
+      const key: string = `${next.x},${next.y}`;
+      if (visited.has(key)) continue;
+      visited.set(key, current);
+      queue.push(next);
+    }
+  }
+
+  return [];
 }
 
 function buildGridFromSegments(
@@ -772,13 +949,8 @@ function buildLevel22Grid(gridWidth: number, gridHeight: number): Grid {
     { x1: 9, y1: 15, x2: 3, y2: 15 },
     { x1: 3, y1: 15, x2: 3, y2: 11 },
     { x1: 3, y1: 11, x2: 7, y2: 11 },
-    { x1: 7, y1: 11, x2: 7, y2: 17 },
-    { x1: 7, y1: 17, x2: 17, y2: 17 },
-    { x1: 17, y1: 17, x2: 17, y2: 19 },
-    { x1: 17, y1: 19, x2: 3, y2: 19 },
-    { x1: 3, y1: 19, x2: 3, y2: 13 },
-    { x1: 3, y1: 13, x2: 5, y2: 13 },
-    { x1: 5, y1: 13, x2: 5, y2: 19 },
+    { x1: 7, y1: 11, x2: 7, y2: 19 },
+    { x1: 7, y1: 19, x2: 19, y2: 19 },
   ];
 
   const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
@@ -786,6 +958,36 @@ function buildLevel22Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
+/**
+ * Build a hand-shaped Level 23 grid aligned to slide mechanics
+ */
+function buildLevel23Grid(gridWidth: number, gridHeight: number): Grid {
+  const segments: GridSegment[] = [
+    { x1: 1, y1: 1, x2: 1, y2: 5 },
+    { x1: 1, y1: 5, x2: 11, y2: 5 },
+    { x1: 11, y1: 5, x2: 11, y2: 1 },
+    { x1: 11, y1: 1, x2: 19, y2: 1 },
+    { x1: 19, y1: 1, x2: 19, y2: 9 },
+    { x1: 19, y1: 9, x2: 13, y2: 9 },
+    { x1: 13, y1: 9, x2: 13, y2: 11 },
+    { x1: 13, y1: 11, x2: 7, y2: 11 },
+    { x1: 7, y1: 11, x2: 7, y2: 17 },
+    { x1: 7, y1: 17, x2: 5, y2: 17 },
+    { x1: 5, y1: 17, x2: 5, y2: 19 },
+    { x1: 5, y1: 19, x2: 19, y2: 19 },
+  ];
+
+  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
+  openStartExit(grid, gridWidth, gridHeight);
+  if (grid[12] && grid[12][7]) {
+    grid[12][7] = 'wall';
+  }
+  return grid;
+}
+
+/**
+ * Build a hand-shaped Level 22 grid aligned to slide mechanics
+ */
 /**
  * Calculate distance map from start position using BFS
  */
