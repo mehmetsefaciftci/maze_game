@@ -70,7 +70,7 @@ export function generateMaze(params: LevelParams): {
   // Convert to CellType grid
   const gridWidth = gridSize * 2 + 1;
   const gridHeight = gridSize * 2 + 1;
-  const grid: ('wall' | 'path')[][] = Array(gridHeight)
+  let grid: ('wall' | 'path')[][] = Array(gridHeight)
     .fill(null)
     .map(() => Array(gridWidth).fill('wall'));
 
@@ -108,46 +108,11 @@ export function generateMaze(params: LevelParams): {
   const startPos: Position = { x: 1, y: 1 };
   const exitPos: Position = { x: gridWidth - 2, y: gridHeight - 2 };
 
-  // Level 7: add stopper walls to break long slides and avoid getting stuck
+  // Level 7: use a custom, hand-shaped layout with more natural stopping points
   if (params.seed === 1213) {
-    const inBounds = (x: number, y: number) => x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
-    const isStartOrExit = (x: number, y: number) =>
-      (x === startPos.x && y === startPos.y) || (x === exitPos.x && y === exitPos.y);
-
-    let placed = 0;
-    const target = 6;
-
-    for (let y = 2; y < gridHeight - 2 && placed < target; y++) {
-      for (let x = 2; x < gridWidth - 2 && placed < target; x++) {
-        if (grid[y][x] !== 'path' || isStartOrExit(x, y)) continue;
-
-        const horizontalCorridor =
-          grid[y][x - 1] === 'path' &&
-          grid[y][x + 1] === 'path' &&
-          grid[y - 1][x] === 'wall' &&
-          grid[y + 1][x] === 'wall' &&
-          grid[y][x - 2] === 'path' &&
-          grid[y][x + 2] === 'path';
-
-        const verticalCorridor =
-          grid[y - 1][x] === 'path' &&
-          grid[y + 1][x] === 'path' &&
-          grid[y][x - 1] === 'wall' &&
-          grid[y][x + 1] === 'wall' &&
-          grid[y - 2][x] === 'path' &&
-          grid[y + 2][x] === 'path';
-
-        if (!horizontalCorridor && !verticalCorridor) continue;
-
-        // Try placing a wall here; keep it only if a path still exists
-        grid[y][x] = 'wall';
-        const stillSolvable = findShortestPath(grid, startPos, exitPos) > 0;
-        if (stillSolvable) {
-          placed += 1;
-        } else {
-          grid[y][x] = 'path';
-        }
-      }
+    const customGrid = buildLevel7Grid(gridWidth, gridHeight);
+    if (findShortestPath(customGrid, startPos, exitPos) > 0) {
+      grid = customGrid;
     }
   }
 
@@ -156,47 +121,6 @@ export function generateMaze(params: LevelParams): {
 
   // Generate coins and doors based on level
   const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng);
-
-  // Level 7: add a few extra openings to make the layout more forgiving
-  if (params.seed === 1213) {
-    const mainPath = findPathPositions(grid, startPos, exitPos);
-    const inBounds = (x: number, y: number) => x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
-    const countPathNeighbors = (x: number, y: number) => {
-      let count = 0;
-      const dirs = [
-        { x: 0, y: -1 },
-        { x: 1, y: 0 },
-        { x: 0, y: 1 },
-        { x: -1, y: 0 },
-      ];
-      for (const d of dirs) {
-        const nx = x + d.x;
-        const ny = y + d.y;
-        if (inBounds(nx, ny) && grid[ny][nx] === 'path') count++;
-      }
-      return count;
-    };
-
-    // Every 3rd path cell: open one adjacent wall if it connects to 2+ paths
-    for (let i = 3; i < mainPath.length - 3; i += 3) {
-      const { x, y } = mainPath[i];
-      const candidates = [
-        { x: x, y: y - 1 },
-        { x: x + 1, y: y },
-        { x: x, y: y + 1 },
-        { x: x - 1, y: y },
-      ];
-
-      for (const c of candidates) {
-        if (inBounds(c.x, c.y) && grid[c.y][c.x] === 'wall') {
-          if (countPathNeighbors(c.x, c.y) >= 2) {
-            grid[c.y][c.x] = 'path';
-            break;
-          }
-        }
-      }
-    }
-  }
 
   return {
     grid: {
@@ -504,6 +428,64 @@ function getMinDistanceToMainPath(pos: Position, mainPath: Position[]): number {
     minDist = Math.min(minDist, dist);
   }
   return minDist;
+}
+
+/**
+ * Build a hand-shaped Level 7 grid with more stopping points
+ */
+function buildLevel7Grid(gridWidth: number, gridHeight: number): ('wall' | 'path')[][] {
+  const grid: ('wall' | 'path')[][] = Array(gridHeight)
+    .fill(null)
+    .map(() => Array(gridWidth).fill('wall'));
+
+  // Open interior area
+  for (let y = 1; y < gridHeight - 1; y++) {
+    for (let x = 1; x < gridWidth - 1; x++) {
+      grid[y][x] = 'path';
+    }
+  }
+
+  // Add pillar walls to create frequent stopping points
+  for (let y = 2; y <= gridHeight - 3; y += 2) {
+    for (let x = 2; x <= gridWidth - 3; x += 2) {
+      grid[y][x] = 'wall';
+    }
+  }
+
+  // Add two crossing wall lines to shape the flow
+  for (let y = 1; y < gridHeight - 1; y++) {
+    grid[y][6] = 'wall';
+  }
+  for (let x = 1; x < gridWidth - 1; x++) {
+    grid[6][x] = 'wall';
+  }
+
+  // Open gaps in the crossing walls
+  const gaps: Position[] = [
+    { x: 6, y: 2 },
+    { x: 6, y: 5 },
+    { x: 6, y: 8 },
+    { x: 6, y: 10 },
+    { x: 2, y: 6 },
+    { x: 4, y: 6 },
+    { x: 8, y: 6 },
+    { x: 10, y: 6 },
+  ];
+  gaps.forEach(({ x, y }) => {
+    if (y >= 0 && y < gridHeight && x >= 0 && x < gridWidth) {
+      grid[y][x] = 'path';
+    }
+  });
+
+  // Ensure start/exit neighborhoods are open
+  grid[1][1] = 'path';
+  grid[1][2] = 'path';
+  grid[2][1] = 'path';
+  grid[gridHeight - 2][gridWidth - 2] = 'path';
+  grid[gridHeight - 2][gridWidth - 3] = 'path';
+  grid[gridHeight - 3][gridWidth - 2] = 'path';
+
+  return grid;
 }
 
 /**
