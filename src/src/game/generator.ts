@@ -90,6 +90,21 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
       { position: { x: 5, y: 19 }, color: 'green' },
     ],
   },
+  {
+    level: 20,
+    seed: 1341,
+    build: buildLevel20Grid,
+    coins: [
+      { position: { x: 1, y: 7 }, color: 'red' },
+      { position: { x: 19, y: 9 }, color: 'blue' },
+      { position: { x: 17, y: 15 }, color: 'green' },
+    ],
+    doors: [
+      { position: { x: 13, y: 1 }, color: 'red' },
+      { position: { x: 9, y: 9 }, color: 'blue' },
+      { position: { x: 3, y: 19 }, color: 'green' },
+    ],
+  },
 ];
 
 function getSpecialByLevel(level: number): SpecialLevelConfig | undefined {
@@ -207,6 +222,9 @@ export function generateMaze(params: LevelParams): {
 
   // Generate coins and doors based on level
   const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng);
+  if (!specialBySeed) {
+    enforceCoinBeforeDoor(grid, startPos, exitPos, coins, doors);
+  }
 
   return {
     grid: {
@@ -522,6 +540,49 @@ function getMinDistanceToMainPath(pos: Position, mainPath: Position[]): number {
   return minDist;
 }
 
+function enforceCoinBeforeDoor(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  coins: Coin[],
+  doors: Door[]
+): void {
+  if (doors.length === 0 || coins.length === 0) return;
+
+  const distanceMap = calculateDistanceMap(grid, startPos);
+  const mainPath = findPathPositions(grid, startPos, exitPos);
+  const mainPathSorted = [...mainPath].sort((a, b) => {
+    const distA = distanceMap.get(`${a.x},${a.y}`) ?? Infinity;
+    const distB = distanceMap.get(`${b.x},${b.y}`) ?? Infinity;
+    return distA - distB;
+  });
+
+  for (const door of doors) {
+    const coin = coins.find((c) => c.color === door.color);
+    if (!coin) continue;
+
+    const coinKey = `${coin.position.x},${coin.position.y}`;
+    const doorKey = `${door.position.x},${door.position.y}`;
+    const coinDist = distanceMap.get(coinKey) ?? Infinity;
+    const doorDist = distanceMap.get(doorKey) ?? Infinity;
+
+    if (doorDist > coinDist) continue;
+
+    const target = mainPathSorted.find((pos) => {
+      const key = `${pos.x},${pos.y}`;
+      const dist = distanceMap.get(key) ?? Infinity;
+      const isStart = pos.x === startPos.x && pos.y === startPos.y;
+      const isExit = pos.x === exitPos.x && pos.y === exitPos.y;
+      const hasCoin = coins.some((c) => c.position.x === pos.x && c.position.y === pos.y);
+      return dist > coinDist && !isStart && !isExit && !hasCoin;
+    });
+
+    if (target) {
+      door.position = { x: target.x, y: target.y };
+    }
+  }
+}
+
 function buildGridFromSegments(
   gridWidth: number,
   gridHeight: number,
@@ -644,6 +705,36 @@ function buildLevel19Grid(gridWidth: number, gridHeight: number): Grid {
     { x1: 15, y1: 17, x2: 3, y2: 17 },
     { x1: 3, y1: 17, x2: 3, y2: 19 },
     { x1: 3, y1: 19, x2: 19, y2: 19 },
+  ];
+
+  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
+  openStartExit(grid, gridWidth, gridHeight);
+  return grid;
+}
+
+/**
+ * Build a hand-shaped Level 20 grid aligned to slide mechanics
+ */
+function buildLevel20Grid(gridWidth: number, gridHeight: number): Grid {
+  const segments: GridSegment[] = [
+    { x1: 1, y1: 1, x2: 1, y2: 7 },
+    { x1: 1, y1: 7, x2: 13, y2: 7 },
+    { x1: 13, y1: 7, x2: 13, y2: 1 },
+    { x1: 13, y1: 1, x2: 19, y2: 1 },
+    { x1: 19, y1: 1, x2: 19, y2: 9 },
+    { x1: 19, y1: 9, x2: 9, y2: 9 },
+    { x1: 9, y1: 9, x2: 9, y2: 15 },
+    { x1: 9, y1: 15, x2: 17, y2: 15 },
+    { x1: 17, y1: 15, x2: 17, y2: 19 },
+    { x1: 17, y1: 19, x2: 3, y2: 19 },
+    { x1: 3, y1: 19, x2: 3, y2: 11 },
+    { x1: 3, y1: 11, x2: 7, y2: 11 },
+    { x1: 7, y1: 11, x2: 7, y2: 13 },
+    { x1: 7, y1: 13, x2: 15, y2: 13 },
+    { x1: 15, y1: 13, x2: 15, y2: 17 },
+    { x1: 15, y1: 17, x2: 5, y2: 17 },
+    { x1: 5, y1: 17, x2: 5, y2: 19 },
+    { x1: 5, y1: 19, x2: 19, y2: 19 },
   ];
 
   const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
