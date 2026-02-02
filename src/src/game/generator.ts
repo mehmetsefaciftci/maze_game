@@ -108,38 +108,94 @@ export function generateMaze(params: LevelParams): {
   const startPos: Position = { x: 1, y: 1 };
   const exitPos: Position = { x: gridWidth - 2, y: gridHeight - 2 };
 
+  // Level 7: add stopper walls to break long slides and avoid getting stuck
+  if (params.seed === 1213) {
+    const inBounds = (x: number, y: number) => x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
+    const isStartOrExit = (x: number, y: number) =>
+      (x === startPos.x && y === startPos.y) || (x === exitPos.x && y === exitPos.y);
+
+    let placed = 0;
+    const target = 6;
+
+    for (let y = 2; y < gridHeight - 2 && placed < target; y++) {
+      for (let x = 2; x < gridWidth - 2 && placed < target; x++) {
+        if (grid[y][x] !== 'path' || isStartOrExit(x, y)) continue;
+
+        const horizontalCorridor =
+          grid[y][x - 1] === 'path' &&
+          grid[y][x + 1] === 'path' &&
+          grid[y - 1][x] === 'wall' &&
+          grid[y + 1][x] === 'wall' &&
+          grid[y][x - 2] === 'path' &&
+          grid[y][x + 2] === 'path';
+
+        const verticalCorridor =
+          grid[y - 1][x] === 'path' &&
+          grid[y + 1][x] === 'path' &&
+          grid[y][x - 1] === 'wall' &&
+          grid[y][x + 1] === 'wall' &&
+          grid[y - 2][x] === 'path' &&
+          grid[y + 2][x] === 'path';
+
+        if (!horizontalCorridor && !verticalCorridor) continue;
+
+        // Try placing a wall here; keep it only if a path still exists
+        grid[y][x] = 'wall';
+        const stillSolvable = findShortestPath(grid, startPos, exitPos) > 0;
+        if (stillSolvable) {
+          placed += 1;
+        } else {
+          grid[y][x] = 'path';
+        }
+      }
+    }
+  }
+
   // Calculate solution length using BFS
   const solutionLength = findShortestPath(grid, startPos, exitPos);
 
   // Generate coins and doors based on level
   const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng);
-  
-  // Level 7: Remove walls around specific coin positions
-  if (params.seed === 1049) {
-    coins.forEach(coin => {
-      if (coin.color === 'green') {
-        const cx = coin.position.x;
-        const cy = coin.position.y;
-        
-        // Remove walls around this coin position (make it more accessible)
-        // Remove wall above
-        if (cy > 0 && grid[cy - 1][cx] === 'wall') {
-          grid[cy - 1][cx] = 'path';
-        }
-        // Remove wall below
-        if (cy < gridHeight - 1 && grid[cy + 1][cx] === 'wall') {
-          grid[cy + 1][cx] = 'path';
-        }
-        // Remove wall left
-        if (cx > 0 && grid[cy][cx - 1] === 'wall') {
-          grid[cy][cx - 1] = 'path';
-        }
-        // Remove wall right
-        if (cx < gridWidth - 1 && grid[cy][cx + 1] === 'wall') {
-          grid[cy][cx + 1] = 'path';
+
+  // Level 7: add a few extra openings to make the layout more forgiving
+  if (params.seed === 1213) {
+    const mainPath = findPathPositions(grid, startPos, exitPos);
+    const inBounds = (x: number, y: number) => x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
+    const countPathNeighbors = (x: number, y: number) => {
+      let count = 0;
+      const dirs = [
+        { x: 0, y: -1 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+        { x: -1, y: 0 },
+      ];
+      for (const d of dirs) {
+        const nx = x + d.x;
+        const ny = y + d.y;
+        if (inBounds(nx, ny) && grid[ny][nx] === 'path') count++;
+      }
+      return count;
+    };
+
+    // Every 3rd path cell: open one adjacent wall if it connects to 2+ paths
+    for (let i = 3; i < mainPath.length - 3; i += 3) {
+      const { x, y } = mainPath[i];
+      const candidates = [
+        { x: x, y: y - 1 },
+        { x: x + 1, y: y },
+        { x: x, y: y + 1 },
+        { x: x - 1, y: y },
+      ];
+
+      for (const c of candidates) {
+        if (inBounds(c.x, c.y) && grid[c.y][c.x] === 'wall') {
+          if (countPathNeighbors(c.x, c.y) >= 2) {
+            grid[c.y][c.x] = 'path';
+            break;
+          }
         }
       }
-    });
+    }
   }
 
   return {
@@ -251,10 +307,12 @@ export function getLevelConfig(level: number): LevelParams {
   const complexity = Math.min(0.3 + level * 0.05, 0.8);
   
   // Deterministic seed based on level
-  // Level 3 gets a special seed for better layout
+  // Level 3 and 7 get special seeds for better layouts
   let seed: number;
   if (level === 3) {
     seed = 1050; // Special seed for level 3 redesign
+  } else if (level === 7) {
+    seed = 1213; // Special seed for level 7 redesign (easier)
   } else {
     seed = 1000 + level * 7;
   }
@@ -301,7 +359,8 @@ function generateCoinsAndDoors(
   if (actualLevel < 2) return { coins, doors };
   
   // Determine number of coin/door pairs based on level
-  const numPairs = Math.min(Math.floor((actualLevel - 1) / 3) + 1, 3);
+  const basePairs = Math.min(Math.floor((actualLevel - 1) / 3) + 1, 3);
+  const numPairs = actualLevel === 7 ? 2 : basePairs;
   
   if (numPairs === 0) return { coins, doors };
   
