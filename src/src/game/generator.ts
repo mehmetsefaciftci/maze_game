@@ -334,15 +334,13 @@ function generateCoinsAndDoors(
   if (actualLevel === 18) {
     const fixedCoins: Coin[] = [
       { position: { x: 1, y: 5 }, color: 'red' },
-      { position: { x: 17, y: 7 }, color: 'blue' },
-      { position: { x: 5, y: 15 }, color: 'green' },
-      { position: { x: 19, y: 11 }, color: 'yellow' },
+      { position: { x: 19, y: 7 }, color: 'blue' },
+      { position: { x: 17, y: 11 }, color: 'green' },
     ];
     const fixedDoors: Door[] = [
       { position: { x: 9, y: 1 }, color: 'red' },
-      { position: { x: 19, y: 7 }, color: 'blue' },
-      { position: { x: 7, y: 15 }, color: 'green' },
-      { position: { x: 19, y: 13 }, color: 'yellow' },
+      { position: { x: 5, y: 7 }, color: 'blue' },
+      { position: { x: 3, y: 15 }, color: 'green' },
     ];
 
     return { coins: fixedCoins, doors: fixedDoors };
@@ -450,7 +448,7 @@ function findPathPositions(
       let pos: Position | null = current;
       while (pos) {
         path.unshift(pos);
-        const key = `${pos.x},${pos.y}`;
+        const key: string = `${pos.x},${pos.y}`;
         pos = visited.get(key) || null;
       }
       return path;
@@ -465,7 +463,7 @@ function findPathPositions(
     
     for (const dir of directions) {
       const next = { x: current.x + dir.x, y: current.y + dir.y };
-      const key = `${next.x},${next.y}`;
+      const key: string = `${next.x},${next.y}`;
       
       if (
         next.x >= 0 &&
