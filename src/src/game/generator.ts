@@ -310,12 +310,12 @@ function generateCoinsAndDoors(
   if (actualLevel === 8) {
     const fixedCoins: Coin[] = [
       { position: { x: 3, y: 3 }, color: 'red' },
-      { position: { x: 9, y: 7 }, color: 'blue' },
+      { position: { x: 11, y: 7 }, color: 'blue' },
       { position: { x: 5, y: 11 }, color: 'green' },
     ];
     const fixedDoors: Door[] = [
       { position: { x: 7, y: 1 }, color: 'red' },
-      { position: { x: 11, y: 7 }, color: 'blue' },
+      { position: { x: 9, y: 7 }, color: 'blue' },
       { position: { x: 5, y: 9 }, color: 'green' },
     ];
 
