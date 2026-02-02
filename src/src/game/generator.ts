@@ -115,6 +115,13 @@ export function generateMaze(params: LevelParams): {
       grid = customGrid;
     }
   }
+  // Level 8: use a custom, hand-shaped layout aligned to slide rules
+  if (params.seed === 1221) {
+    const customGrid = buildLevel8Grid(gridWidth, gridHeight);
+    if (findShortestPath(customGrid, startPos, exitPos) > 0) {
+      grid = customGrid;
+    }
+  }
 
   // Calculate solution length using BFS
   const solutionLength = findShortestPath(grid, startPos, exitPos);
@@ -231,12 +238,14 @@ export function getLevelConfig(level: number): LevelParams {
   const complexity = Math.min(0.3 + level * 0.05, 0.8);
   
   // Deterministic seed based on level
-  // Level 3 and 7 get special seeds for better layouts
+  // Level 3, 7, and 8 get special seeds for better layouts
   let seed: number;
   if (level === 3) {
     seed = 1050; // Special seed for level 3 redesign
   } else if (level === 7) {
     seed = 1213; // Special seed for level 7 redesign (easier)
+  } else if (level === 8) {
+    seed = 1221; // Special seed for level 8 redesign
   } else {
     seed = 1000 + level * 7;
   }
@@ -277,8 +286,12 @@ function generateCoinsAndDoors(
   
   // Start adding coins from level 2
   const level = Math.floor((params.seed - 1000) / 7); // Reverse engineer level from seed
-  // Special case for level 3 with custom seed
-  const actualLevel = params.seed === 1050 ? 3 : level;
+  // Special cases for custom seeds
+  const actualLevel =
+    params.seed === 1050 ? 3 :
+    params.seed === 1213 ? 7 :
+    params.seed === 1221 ? 8 :
+    level;
   
   if (actualLevel < 2) return { coins, doors };
 
@@ -290,6 +303,20 @@ function generateCoinsAndDoors(
     const fixedDoors: Door[] = [
       { position: { x: 9, y: 1 }, color: 'red' },
       { position: { x: 3, y: 11 }, color: 'blue' },
+    ];
+
+    return { coins: fixedCoins, doors: fixedDoors };
+  }
+  if (actualLevel === 8) {
+    const fixedCoins: Coin[] = [
+      { position: { x: 3, y: 3 }, color: 'red' },
+      { position: { x: 9, y: 7 }, color: 'blue' },
+      { position: { x: 5, y: 11 }, color: 'green' },
+    ];
+    const fixedDoors: Door[] = [
+      { position: { x: 7, y: 1 }, color: 'red' },
+      { position: { x: 11, y: 7 }, color: 'blue' },
+      { position: { x: 5, y: 9 }, color: 'green' },
     ];
 
     return { coins: fixedCoins, doors: fixedDoors };
@@ -470,6 +497,51 @@ function buildLevel7Grid(gridWidth: number, gridHeight: number): ('wall' | 'path
   carveLine(9, 1, 11, 1);
   carveLine(11, 1, 11, 9);
   carveLine(11, 9, 3, 9);
+  carveLine(3, 9, 3, 11);
+  carveLine(3, 11, 11, 11);
+
+  // Ensure start/exit neighborhoods are open
+  grid[1][1] = 'path';
+  grid[1][2] = 'path';
+  grid[2][1] = 'path';
+  grid[gridHeight - 2][gridWidth - 2] = 'path';
+  grid[gridHeight - 2][gridWidth - 3] = 'path';
+  grid[gridHeight - 3][gridWidth - 2] = 'path';
+
+  return grid;
+}
+
+/**
+ * Build a hand-shaped Level 8 grid aligned to slide mechanics
+ */
+function buildLevel8Grid(gridWidth: number, gridHeight: number): ('wall' | 'path')[][] {
+  const grid: ('wall' | 'path')[][] = Array(gridHeight)
+    .fill(null)
+    .map(() => Array(gridWidth).fill('wall'));
+
+  const carveLine = (x1: number, y1: number, x2: number, y2: number) => {
+    if (x1 === x2) {
+      const [start, end] = y1 < y2 ? [y1, y2] : [y2, y1];
+      for (let y = start; y <= end; y++) grid[y][x1] = 'path';
+      return;
+    }
+    if (y1 === y2) {
+      const [start, end] = x1 < x2 ? [x1, x2] : [x2, x1];
+      for (let x = start; x <= end; x++) grid[y1][x] = 'path';
+    }
+  };
+
+  // Main route (snake) aligned to slide mechanics
+  carveLine(1, 1, 1, 3);
+  carveLine(1, 3, 7, 3);
+  carveLine(7, 3, 7, 1);
+  carveLine(7, 1, 11, 1);
+  carveLine(11, 1, 11, 7);
+  carveLine(11, 7, 9, 7);
+  carveLine(9, 7, 9, 11);
+  carveLine(9, 11, 5, 11);
+  carveLine(5, 11, 5, 9);
+  carveLine(5, 9, 3, 9);
   carveLine(3, 9, 3, 11);
   carveLine(3, 11, 11, 11);
 
