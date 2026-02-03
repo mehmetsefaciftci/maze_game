@@ -156,7 +156,7 @@ export function ResultDialog({
               onClick={onNextLevel}
               className="flex-1 bg-white text-purple-600 py-4 rounded-2xl font-black text-lg shadow-2xl"
             >
-              Sonraki Seviye
+              Sonraki Seviye: {level + 1}
             </motion.button>
           )}
         </div>

@@ -22,11 +22,10 @@ import { gameReducer, createLevel } from '../game/reducer';
 import { getGridForRender, canUndo, getProgress } from '../game/selectors';
 import { type Direction, MAX_LEVEL } from '../game/types';
 import { MazeGrid } from './MazeGrid';
-import { Controls } from './Controls';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'stages' | 'game';
-
+type StageKey = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan';
 type UserProgress = {
   completedLevels: number[];
   currentLevel: number;
@@ -95,6 +94,8 @@ function getHighestCompleted(completedLevels: number[]) {
 export function GameScreen() {
   const [state, dispatch] = useReducer(gameReducer, null, () => createLevel(1));
   const [screen, setScreen] = useState<ScreenState>('auth');
+  const [stagePopupOpen, setStagePopupOpen] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<StageKey>('gezegen');
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -228,8 +229,6 @@ export function GameScreen() {
     touchStartRef.current = null;
   };
 
-  const handleMove = (direction: Direction) => dispatch({ type: 'MOVE', direction });
-  const handleUndo = () => dispatch({ type: 'UNDO' });
   const handleRestart = () => dispatch({ type: 'RESTART' });
   const handleNextLevel = () => {
     if (isFinalLevel) return;
@@ -238,9 +237,14 @@ export function GameScreen() {
 
   const movesUsed = state.maxMoves - state.movesLeft;
 
-  const handleShowStages = () => setScreen('stages');
+  const handleShowStages = () => setStagePopupOpen(true);
   const handleBackToMenu = () => setScreen('menu');
   const handleMenuReturn = () => setScreen('menu');
+  const handleSelectStage = (stage: StageKey) => {
+    setSelectedStage(stage);
+    setStagePopupOpen(false);
+    setScreen('stages');
+  };
 
   const handleStartLevel = (level: number) => {
     if (!user) return;
@@ -391,7 +395,7 @@ export function GameScreen() {
 
                 <button
                   onClick={handleMenuReturn}
-                  className="bg-white/10 text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/20"
+                  className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
                 >
                   Menü
                 </button>
@@ -421,12 +425,6 @@ export function GameScreen() {
             </motion.div>
           </div>
 
-          <div className="pb-8 px-4 relative z-10">
-            <div className="max-w-md mx-auto">
-              <Controls canUndo={canUndoMove} onUndo={handleUndo} onRestart={handleRestart} onMove={handleMove} disabled={state.status !== 'playing'} />
-            </div>
-          </div>
-
           <ResultDialog
             status={state.status}
             level={state.level}
@@ -437,8 +435,7 @@ export function GameScreen() {
             onMenu={handleMenuReturn}
           />
         </>
-      ) : (
-        // MENU + STAGES
+      ) : screen === 'stages' ? (
         <div className="flex-1 flex items-center justify-center p-4 relative z-10">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -446,149 +443,199 @@ export function GameScreen() {
             transition={{ duration: 0.3 }}
             className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden"
           >
-            {screen === 'menu' ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <div className="text-white/80 text-xs font-bold">
-                    Kullanıcı: <span className="text-white">{user?.username}</span>
-                  </div>
-                  <button onClick={doLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
-                    Çıkış
-                  </button>
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="text-white/80 text-xs font-bold">
+                Kullanıcı: <span className="text-white">{user?.username}</span>
+              </div>
+              <button onClick={doLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
+                Çıkış
+              </button>
+            </div>
 
-                <div className="text-center space-y-2 mt-3">
-                  <div className="text-sm font-bold text-white/80 tracking-[0.2em]">LABİRENT</div>
-                  <h1 className="text-4xl font-black text-white">MAZE GAME</h1>
-                  <p className="text-white/80 text-sm">Oyna butonuna tıkla, aşamanı seç.</p>
-                </div>
+            <div className="text-center space-y-2 mt-3">
+              <div className="text-sm font-bold text-white/80 tracking-[0.2em]">AŞAMA</div>
+              <h2 className="text-3xl font-black text-white">
+                {selectedStage === 'gezegen' && 'Gezegen'}
+                {selectedStage === 'buz' && 'Buz'}
+                {selectedStage === 'toprak' && 'Toprak'}
+                {selectedStage === 'kum' && 'Kum'}
+                {selectedStage === 'volkan' && 'Volkan'}
+              </h2>
+              <p className="text-white/80 text-sm">Bölüm 1-50</p>
+            </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleShowStages}
-                  className="mt-6 w-full bg-gradient-to-r from-cyan-400 to-blue-600 text-white py-4 rounded-2xl font-black text-lg shadow-2xl"
-                >
-                  Oyna
-                </motion.button>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <div className="text-white/80 text-xs font-bold">
-                    Kullanıcı: <span className="text-white">{user?.username}</span>
-                  </div>
-                  <button onClick={doLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
-                    Çıkış
-                  </button>
-                </div>
+            <div className="mt-5 space-y-3">
+              <div className="relative w-full text-left bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-fuchsia-400/40 to-cyan-300/30 blur-xl" />
+                <div className="absolute -bottom-20 -left-16 w-44 h-44 rounded-full bg-gradient-to-br from-orange-300/20 to-pink-400/30 blur-2xl" />
 
-                <div className="text-center space-y-2 mt-3">
-                  <div className="text-sm font-bold text-white/80 tracking-[0.2em]">AŞAMALAR</div>
-                  <h2 className="text-3xl font-black text-white">Seçim</h2>
-                  <p className="text-white/80 text-sm">Kullanıcı ilerlemesine göre boyanır.</p>
-                </div>
+                <div className="mt-2 max-h-[58dvh] overflow-y-auto pr-1">
+                  <div className="relative mx-auto w-full max-w-[260px] overflow-visible">
+                    {(() => {
+                      const topPadding = 120;
+                      const stepY = 90;
+                      const stepX = 70;
+                      const totalHeight = topPadding + MAX_LEVEL * stepY + 200;
 
-                <div className="mt-5 space-y-3">
-                  <div className="relative w-full text-left bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-                    <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-fuchsia-400/40 to-cyan-300/30 blur-xl" />
-                    <div className="absolute -bottom-20 -left-16 w-44 h-44 rounded-full bg-gradient-to-br from-orange-300/20 to-pink-400/30 blur-2xl" />
+                      return (
+                        <div className="relative overflow-visible" style={{ height: totalHeight }}>
+                          {Array.from({ length: MAX_LEVEL }, (_, i) => i + 1).map((level) => {
+                            const isCompleted = completedSet.has(level);
+                            const isInProgress = level === progressData.currentLevel;
+                            const isUnlocked = level <= unlockedUntil;
+                            const offsetX = level % 2 === 0 ? stepX : -stepX;
 
-                    <div className="text-xs font-bold opacity-80">1. AŞAMA</div>
-                    <div className="text-2xl font-black">Gezegen Aşaması</div>
-                    <div className="text-sm font-semibold opacity-90">Bölüm 1-50</div>
+                            const bgColor = isCompleted
+                              ? 'rgba(16, 185, 129, 0.22)'
+                              : isInProgress
+                              ? 'rgba(249, 115, 22, 0.22)'
+                              : 'rgba(255, 255, 255, 0.22)';
 
-                    <div className="mt-4 max-h-[58dvh] overflow-y-auto pr-1">
-                      <div className="relative mx-auto w-full max-w-[260px] overflow-visible">
-                        {(() => {
-                          const topPadding = 120;
-                          const stepY = 90;
-                          const stepX = 70;
-                          const totalHeight = topPadding + MAX_LEVEL * stepY + 200;
+                            const borderColor = isCompleted
+                              ? 'rgba(52, 211, 153, 0.45)'
+                              : isInProgress
+                              ? 'rgba(251, 146, 60, 0.45)'
+                              : 'rgba(255, 255, 255, 0.35)';
 
-                          return (
-                            <div className="relative overflow-visible" style={{ height: totalHeight }}>
-                              {Array.from({ length: MAX_LEVEL }, (_, i) => i + 1).map((level) => {
-                                const isCompleted = completedSet.has(level);
-                                const isInProgress = level === progressData.currentLevel;
-                                const isUnlocked = level <= unlockedUntil;
-                                const offsetX = level % 2 === 0 ? stepX : -stepX;
+                            const textColor = isUnlocked ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.75)';
 
-                                // ✅ SAME transparency level for ALL circles (including locked)
-                                const bgColor = isCompleted
-                                  ? 'rgba(16, 185, 129, 0.22)'
-                                  : isInProgress
-                                  ? 'rgba(249, 115, 22, 0.22)'
-                                  : 'rgba(255, 255, 255, 0.22)';
-
-                                const borderColor = isCompleted
-                                  ? 'rgba(52, 211, 153, 0.45)'
-                                  : isInProgress
-                                  ? 'rgba(251, 146, 60, 0.45)'
-                                  : 'rgba(255, 255, 255, 0.35)';
-
-                                // ✅ Numbers are bold for ALL levels; locked is just slightly dimmer
-                                const textColor = isUnlocked ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.75)';
-
-                                return (
-                                  <motion.div
-                                    key={level}
-                                    className="absolute z-10"
-                                    style={{
-                                      left: `calc(50% + ${offsetX}px)`,
-                                      top: `${topPadding + (level - 1) * stepY}px`,
-                                    }}
-                                    whileHover={{ zIndex: 50 }}
-                                  >
-                                    <motion.button
-                                      type="button"
-                                      disabled={!isUnlocked}
-                                      className={[
-                                        'w-12 h-12 rounded-full',
-                                        'flex items-center justify-center',
-                                        // ✅ bolder numbers everywhere
-                                        'text-[16px] font-black tabular-nums',
-                                        'tracking-[0.02em]',
-                                        'border backdrop-blur-sm',
-                                        '-translate-x-1/2 -translate-y-1/2',
-                                        'shadow-lg shadow-cyan-500/10',
-                                        'will-change-transform',
-                                        isUnlocked ? 'cursor-pointer' : 'cursor-not-allowed',
-                                        // ✅ prevent disabled opacity wash-out
-                                        'disabled:opacity-100',
-                                      ].join(' ')}
-                                      style={{
-                                        backgroundColor: bgColor,
-                                        borderColor,
-                                        color: textColor,
-                                        textShadow: '0 2px 10px rgba(0,0,0,0.35)',
-                                      }}
-                                      whileHover={isUnlocked ? { scale: 1.06 } : undefined}
-                                      whileTap={isUnlocked ? { scale: 0.95 } : undefined}
-                                      onClick={() => {
-                                        if (!isUnlocked) return;
-                                        handleStartLevel(level);
-                                      }}
-                                    >
-                                      {level}
-                                    </motion.button>
-                                  </motion.div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
+                            return (
+                              <motion.div
+                                key={level}
+                                className="absolute z-10"
+                                style={{
+                                  left: `calc(50% + ${offsetX}px)`,
+                                  top: `${topPadding + (level - 1) * stepY}px`,
+                                }}
+                                whileHover={{ zIndex: 50 }}
+                              >
+                                <motion.button
+                                  type="button"
+                                  disabled={!isUnlocked}
+                                  className={[
+                                    'w-12 h-12 rounded-full',
+                                    'flex items-center justify-center',
+                                    'text-[16px] font-black tabular-nums',
+                                    'tracking-[0.02em]',
+                                    'border backdrop-blur-sm',
+                                    '-translate-x-1/2 -translate-y-1/2',
+                                    'shadow-lg shadow-cyan-500/10',
+                                    'will-change-transform',
+                                    isUnlocked ? 'cursor-pointer' : 'cursor-not-allowed',
+                                    'disabled:opacity-100',
+                                  ].join(' ')}
+                                  style={{
+                                    backgroundColor: bgColor,
+                                    borderColor,
+                                    color: textColor,
+                                    textShadow: '0 2px 10px rgba(0,0,0,0.35)',
+                                  }}
+                                  whileHover={isUnlocked ? { scale: 1.06 } : undefined}
+                                  whileTap={isUnlocked ? { scale: 0.95 } : undefined}
+                                  onClick={() => {
+                                    if (!isUnlocked) return;
+                                    handleStartLevel(level);
+                                  }}
+                                >
+                                  {level}
+                                </motion.button>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <button onClick={handleBackToMenu} className="mt-4 w-full text-white/80 text-sm font-bold">
-                  Geri
-                </button>
-              </>
-            )}
+            <button onClick={handleBackToMenu} className="mt-4 w-full text-white/80 text-sm font-bold">
+              Geri
+            </button>
           </motion.div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-white/80 text-xs font-bold">
+                Kullanıcı: <span className="text-white">{user?.username}</span>
+              </div>
+              <button onClick={doLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
+                Çıkış
+              </button>
+            </div>
+
+            <div className="text-center space-y-2 mt-3">
+              <div className="text-sm font-bold text-white/80 tracking-[0.2em]">LABİRENT</div>
+              <h1 className="text-4xl font-black text-white">MAZE GAME</h1>
+              <p className="text-white/80 text-sm">Oyna butonuna tıkla, aşamanı seç.</p>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleShowStages}
+              className="mt-6 w-full bg-gradient-to-r from-cyan-400 to-blue-600 text-white py-4 rounded-2xl font-black text-lg shadow-2xl"
+            >
+              Oyna
+            </motion.button>
+          </motion.div>
+          {stagePopupOpen && (
+            <>
+              <div className="fixed inset-0 z-20 bg-black/50" onClick={() => setStagePopupOpen(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-30 flex items-center justify-center p-4"
+              >
+                <div className="w-full max-w-sm bg-white/15 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl">
+                  <div className="flex items-center justify-between">
+                    <div className="text-white font-black">Aşamalar</div>
+                    <button onClick={() => setStagePopupOpen(false)} className="text-white/70 text-xs font-bold">
+                      Kapat
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3">
+                    {([
+                      { key: 'gezegen', label: 'Gezegen' },
+                      { key: 'buz', label: 'Buz' },
+                      { key: 'toprak', label: 'Toprak' },
+                      { key: 'kum', label: 'Kum' },
+                      { key: 'volkan', label: 'Volkan' },
+                    ] as { key: StageKey; label: string }[]).map((stage) => (
+                      <button
+                        key={stage.key}
+                        onClick={() => handleSelectStage(stage.key)}
+                        className="overflow-hidden rounded-2xl border border-white/20 text-left text-white"
+                      >
+                        <div
+  className="h-24 w-full rounded-2xl overflow-hidden"
+  style={{
+    backgroundImage: `url(/stages/${stage.key}.jpg)`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+    backgroundSize: '100% 100%',
+  }}
+/>
+
+
+
+                        <div className="px-4 py-3 text-lg font-black">{stage.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </div>
       )}
     </div>
