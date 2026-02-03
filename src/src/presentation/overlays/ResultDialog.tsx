@@ -11,16 +11,20 @@ interface ResultDialogProps {
   status: GameStatus;
   level: number;
   movesUsed: number;
+  isFinalLevel: boolean;
   onRestart: () => void;
   onNextLevel: () => void;
+  onMenu: () => void;
 }
 
 export function ResultDialog({
   status,
   level,
   movesUsed,
+  isFinalLevel,
   onRestart,
   onNextLevel,
+  onMenu,
 }: ResultDialogProps) {
   if (status === 'playing') {
     return null;
@@ -122,6 +126,17 @@ export function ResultDialog({
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onMenu}
+            className="flex-1 bg-white/15 backdrop-blur-sm text-white py-4 rounded-2xl font-black text-lg shadow-2xl border-2 border-white/20"
+          >
+            Menüye Dön
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -131,7 +146,7 @@ export function ResultDialog({
             {isWin ? 'Tekrar Oyna' : 'Tekrar Dene'}
           </motion.button>
 
-          {isWin && (
+          {isWin && !isFinalLevel && (
             <motion.button
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -145,6 +160,11 @@ export function ResultDialog({
             </motion.button>
           )}
         </div>
+        {isWin && isFinalLevel && (
+          <div className="mt-4 text-white/90 text-sm font-bold">
+            Final seviye tamamlandı!
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );

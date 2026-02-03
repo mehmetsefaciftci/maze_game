@@ -4,6 +4,7 @@
  */
 
 import type { MazeState, GameAction, Direction, Position } from './types';
+import { MAX_LEVEL } from './types';
 import { generateMaze, getLevelConfig, calculateMoveLimit } from './generator';
 
 /**
@@ -193,10 +194,10 @@ export function gameReducer(state: MazeState, action: GameAction): MazeState {
       return restart(state);
     
     case 'NEXT_LEVEL':
-      return createLevel(state.level + 1);
+      return createLevel(Math.min(state.level + 1, MAX_LEVEL));
     
     case 'LOAD_LEVEL':
-      return createLevel(action.level, action.seed);
+      return createLevel(Math.min(action.level, MAX_LEVEL), action.seed);
     
     default:
       return state;
