@@ -617,14 +617,14 @@ export function GameScreen() {
                         className="overflow-hidden rounded-2xl border border-white/20 text-left text-white"
                       >
                         <div
-  className="h-24 w-full rounded-2xl overflow-hidden"
-  style={{
-    backgroundImage: `url(/stages/${stage.key}.jpg)`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'center',
-    backgroundSize: '100% 100%',
-  }}
-/>
+                          className="h-24 w-full rounded-2xl overflow-hidden"
+                          style={{
+                            backgroundImage: `url(/stages/${stage.key}.jpg)`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'center',
+                            backgroundSize: 'contain',
+                          }}
+                        />
 
 
 
