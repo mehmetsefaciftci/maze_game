@@ -22,6 +22,7 @@ import { gameReducer, createLevel } from '../game/reducer';
 import { getGridForRender, canUndo, getProgress } from '../game/selectors';
 import { type Direction, MAX_LEVEL } from '../game/types';
 import { MazeGrid } from './MazeGrid';
+import { IceMaze } from './IceMaze';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'stages' | 'game';
@@ -37,6 +38,23 @@ type AuthUser = {
 
 const AUTH_USER_KEY = 'maze_auth_user';
 const PROGRESS_PREFIX = 'maze_progress_user_';
+const LEVELS_PER_STAGE = 50;
+
+const STAGES: { key: StageKey; label: string; startLevel: number; endLevel: number }[] = [
+  { key: 'gezegen', label: 'Gezegen', startLevel: 1, endLevel: 50 },
+  { key: 'buz', label: 'Buz', startLevel: 51, endLevel: 100 },
+  { key: 'toprak', label: 'Toprak', startLevel: 101, endLevel: 150 },
+  { key: 'kum', label: 'Kum', startLevel: 151, endLevel: 200 },
+  { key: 'volkan', label: 'Volkan', startLevel: 201, endLevel: 250 },
+];
+
+function getStageForLevel(level: number): StageKey {
+  if (level <= 50) return 'gezegen';
+  if (level <= 100) return 'buz';
+  if (level <= 150) return 'toprak';
+  if (level <= 200) return 'kum';
+  return 'volkan';
+}
 
 function loadCurrentUser(): AuthUser | null {
   const raw = window.localStorage.getItem(AUTH_USER_KEY);
@@ -96,6 +114,7 @@ export function GameScreen() {
   const [screen, setScreen] = useState<ScreenState>('auth');
   const [stagePopupOpen, setStagePopupOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<StageKey>('gezegen');
+  const [paused, setPaused] = useState(false);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -107,8 +126,9 @@ export function GameScreen() {
   const grid = useMemo(() => getGridForRender(state), [state]);
   const canUndoMove = useMemo(() => canUndo(state), [state]);
   const progress = useMemo(() => getProgress(state), [state]);
-  const isGameActive = screen === 'game' && state.status === 'playing';
+  const isGameActive = screen === 'game' && state.status === 'playing' && !paused;
   const isFinalLevel = state.level >= MAX_LEVEL;
+  const currentStage = useMemo(() => getStageForLevel(state.level), [state.level]);
 
   // Boot: load logged user (if exists)
   useEffect(() => {
@@ -234,12 +254,24 @@ export function GameScreen() {
     if (isFinalLevel) return;
     dispatch({ type: 'NEXT_LEVEL' });
   };
+  const handlePauseToggle = () => setPaused((prev) => !prev);
+  const handleResume = () => setPaused(false);
+  const handlePauseMenu = () => {
+    setPaused(false);
+    handleMenuReturn();
+  };
 
   const movesUsed = state.maxMoves - state.movesLeft;
 
   const handleShowStages = () => setStagePopupOpen(true);
-  const handleBackToMenu = () => setScreen('menu');
-  const handleMenuReturn = () => setScreen('menu');
+  const handleBackToMenu = () => {
+    setPaused(false);
+    setScreen('menu');
+  };
+  const handleMenuReturn = () => {
+    setPaused(false);
+    setScreen('menu');
+  };
   const handleSelectStage = (stage: StageKey) => {
     setSelectedStage(stage);
     setStagePopupOpen(false);
@@ -249,6 +281,7 @@ export function GameScreen() {
   const handleStartLevel = (level: number) => {
     if (!user) return;
 
+    setPaused(false);
     dispatch({ type: 'LOAD_LEVEL', level });
 
     setProgressData((prev) => {
@@ -282,12 +315,21 @@ export function GameScreen() {
     setProgressData(defaultProgress());
     dispatch({ type: 'LOAD_LEVEL', level: 1 });
     setUsernameInput('');
+    setPaused(false);
     setScreen('auth');
   };
 
   const completedSet = useMemo(() => new Set(progressData.completedLevels), [progressData.completedLevels]);
   const highestCompletedLevel = getHighestCompleted(progressData.completedLevels);
   const unlockedUntil = Math.max(highestCompletedLevel + 1, progressData.currentLevel);
+  const selectedStageInfo = useMemo(
+    () => STAGES.find((s) => s.key === selectedStage) ?? STAGES[0],
+    [selectedStage]
+  );
+  const selectedStageRangeText =
+    selectedStageInfo.key === 'buz'
+      ? 'Bölüm 1-50'
+      : `Bölüm ${selectedStageInfo.startLevel}-${selectedStageInfo.endLevel}`;
 
   return (
     <div
@@ -354,9 +396,30 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
-          {/* Header */}
-          <div className="px-4 py-4 relative z-10">
-            <div className="max-w-md mx-auto space-y-3">
+          {currentStage === 'buz' ? (
+            <IceMaze level={state.level} movesLeft={state.movesLeft} onPause={handlePauseToggle}>
+              <MazeGrid
+                grid={grid}
+                playerPos={state.playerPos}
+                exitPos={state.exitPos}
+                coins={state.coins}
+                doors={state.doors}
+                collectedCoins={state.collectedCoins}
+                theme="buz"
+                frameSrc="/ice/ice-maze.png"
+                frameStyle={{
+                  left: '6%',
+                  top: '6%',
+                  width: '18%',
+                  height: '32%',
+                }}
+              />
+            </IceMaze>
+          ) : (
+            <>
+              {/* Header */}
+              <div className="px-4 py-4 relative z-10">
+                <div className="relative z-10 max-w-md mx-auto space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -394,10 +457,10 @@ export function GameScreen() {
                 </motion.div>
 
                 <button
-                  onClick={handleMenuReturn}
+                  onClick={handlePauseToggle}
                   className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
                 >
-                  Menü
+                  Duraklat
                 </button>
               </div>
 
@@ -409,21 +472,28 @@ export function GameScreen() {
                   transition={{ duration: 0.3 }}
                 />
               </div>
-            </div>
-          </div>
+                </div>
+              </div>
 
-          <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.3 }}>
-              <MazeGrid
-                grid={grid}
-                playerPos={state.playerPos}
-                exitPos={state.exitPos}
-                coins={state.coins}
-                doors={state.doors}
-                collectedCoins={state.collectedCoins}
-              />
-            </motion.div>
-          </div>
+              <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <MazeGrid
+                    grid={grid}
+                    playerPos={state.playerPos}
+                    exitPos={state.exitPos}
+                    coins={state.coins}
+                    doors={state.doors}
+                    collectedCoins={state.collectedCoins}
+                    theme={currentStage}
+                  />
+                </motion.div>
+              </div>
+            </>
+          )}
 
           <ResultDialog
             status={state.status}
@@ -434,6 +504,35 @@ export function GameScreen() {
             onNextLevel={handleNextLevel}
             onMenu={handleMenuReturn}
           />
+          {paused && (
+            <>
+              <div className="fixed inset-0 z-30 bg-black/60" onClick={handleResume} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-40 flex items-center justify-center p-4"
+              >
+                <div className="w-full max-w-xs bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl text-center">
+                  <div className="text-white font-black text-xl">Duraklatıldı</div>
+                  <div className="mt-4 space-y-3">
+                    <button
+                      onClick={handleResume}
+                      className="w-full bg-gradient-to-r from-cyan-400 to-blue-600 text-white py-3 rounded-2xl font-black shadow-2xl"
+                    >
+                      Devam Et
+                    </button>
+                    <button
+                      onClick={handlePauseMenu}
+                      className="w-full bg-white/10 text-white py-3 rounded-2xl font-black border border-white/20"
+                    >
+                      Menüye Dön
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </>
       ) : screen === 'stages' ? (
         <div className="flex-1 flex items-center justify-center p-4 relative z-10">
@@ -443,25 +542,28 @@ export function GameScreen() {
             transition={{ duration: 0.3 }}
             className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden"
           >
-            <div className="flex items-center justify-between">
-              <div className="text-white/80 text-xs font-bold">
+            <div className="grid grid-cols-3 items-center">
+              <div className="text-white/80 text-xs font-bold justify-self-start">
                 Kullanıcı: <span className="text-white">{user?.username}</span>
               </div>
-              <button onClick={doLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
-                Çıkış
+              <button
+                onClick={handleBackToMenu}
+                className="justify-self-center text-white/80 text-xs font-bold underline underline-offset-4"
+              >
+                Geri
+              </button>
+              <button
+                onClick={doLogout}
+                className="justify-self-end text-white/70 text-xs font-bold underline underline-offset-4"
+              >
+                Kullanıcıdan çıkış
               </button>
             </div>
 
             <div className="text-center space-y-2 mt-3">
               <div className="text-sm font-bold text-white/80 tracking-[0.2em]">AŞAMA</div>
-              <h2 className="text-3xl font-black text-white">
-                {selectedStage === 'gezegen' && 'Gezegen'}
-                {selectedStage === 'buz' && 'Buz'}
-                {selectedStage === 'toprak' && 'Toprak'}
-                {selectedStage === 'kum' && 'Kum'}
-                {selectedStage === 'volkan' && 'Volkan'}
-              </h2>
-              <p className="text-white/80 text-sm">Bölüm 1-50</p>
+              <h2 className="text-3xl font-black text-white">{selectedStageInfo.label}</h2>
+              <p className="text-white/80 text-sm">{selectedStageRangeText}</p>
             </div>
 
             <div className="mt-5 space-y-3">
@@ -475,37 +577,45 @@ export function GameScreen() {
                       const topPadding = 120;
                       const stepY = 90;
                       const stepX = 70;
-                      const totalHeight = topPadding + MAX_LEVEL * stepY + 200;
+                      const totalHeight = topPadding + LEVELS_PER_STAGE * stepY + 200;
+                      const levels = Array.from(
+                        { length: selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1 },
+                        (_, i) => {
+                          const actualLevel = selectedStageInfo.startLevel + i;
+                          const displayLevel = selectedStageInfo.key === 'buz' ? i + 1 : actualLevel;
+                          return { actualLevel, displayLevel };
+                        }
+                      );
 
                       return (
                         <div className="relative overflow-visible" style={{ height: totalHeight }}>
-                          {Array.from({ length: MAX_LEVEL }, (_, i) => i + 1).map((level) => {
-                            const isCompleted = completedSet.has(level);
-                            const isInProgress = level === progressData.currentLevel;
-                            const isUnlocked = level <= unlockedUntil;
-                            const offsetX = level % 2 === 0 ? stepX : -stepX;
+                          {levels.map(({ actualLevel, displayLevel }, idx) => {
+                            const isCompleted = completedSet.has(actualLevel);
+                            const isInProgress = actualLevel === progressData.currentLevel;
+                            const isUnlocked = actualLevel <= unlockedUntil;
+                            const offsetX = (idx + 1) % 2 === 0 ? stepX : -stepX;
 
-                            const bgColor = isCompleted
-                              ? 'rgba(16, 185, 129, 0.22)'
-                              : isInProgress
+                            const bgColor = isInProgress
                               ? 'rgba(249, 115, 22, 0.22)'
+                              : isCompleted
+                              ? 'rgba(16, 185, 129, 0.22)'
                               : 'rgba(255, 255, 255, 0.22)';
 
-                            const borderColor = isCompleted
-                              ? 'rgba(52, 211, 153, 0.45)'
-                              : isInProgress
+                            const borderColor = isInProgress
                               ? 'rgba(251, 146, 60, 0.45)'
+                              : isCompleted
+                              ? 'rgba(52, 211, 153, 0.45)'
                               : 'rgba(255, 255, 255, 0.35)';
 
                             const textColor = isUnlocked ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.75)';
 
                             return (
                               <motion.div
-                                key={level}
+                                key={actualLevel}
                                 className="absolute z-10"
                                 style={{
                                   left: `calc(50% + ${offsetX}px)`,
-                                  top: `${topPadding + (level - 1) * stepY}px`,
+                                  top: `${topPadding + idx * stepY}px`,
                                 }}
                                 whileHover={{ zIndex: 50 }}
                               >
@@ -534,10 +644,10 @@ export function GameScreen() {
                                   whileTap={isUnlocked ? { scale: 0.95 } : undefined}
                                   onClick={() => {
                                     if (!isUnlocked) return;
-                                    handleStartLevel(level);
+                                    handleStartLevel(actualLevel);
                                   }}
                                 >
-                                  {level}
+                                  {displayLevel}
                                 </motion.button>
                               </motion.div>
                             );
@@ -550,9 +660,7 @@ export function GameScreen() {
               </div>
             </div>
 
-            <button onClick={handleBackToMenu} className="mt-4 w-full text-white/80 text-sm font-bold">
-              Geri
-            </button>
+            <div className="mt-4" />
           </motion.div>
         </div>
       ) : (
@@ -604,13 +712,7 @@ export function GameScreen() {
                     </button>
                   </div>
                   <div className="mt-4 grid grid-cols-1 gap-3">
-                    {([
-                      { key: 'gezegen', label: 'Gezegen' },
-                      { key: 'buz', label: 'Buz' },
-                      { key: 'toprak', label: 'Toprak' },
-                      { key: 'kum', label: 'Kum' },
-                      { key: 'volkan', label: 'Volkan' },
-                    ] as { key: StageKey; label: string }[]).map((stage) => (
+                    {STAGES.map((stage) => (
                       <button
                         key={stage.key}
                         onClick={() => handleSelectStage(stage.key)}

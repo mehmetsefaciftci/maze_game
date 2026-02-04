@@ -88,7 +88,7 @@ export function StageCarousel({
     // güvenli clamp (yanlışlıkla MAX_LEVEL düşük kalırsa bile aralık taşmasın)
     startLevel: clamp(s.startLevel, 1, safeMax),
     endLevel: clamp(s.endLevel, 1, safeMax),
-    rangeText: `Bölüm ${s.startLevel}-${s.endLevel}`,
+    rangeText: s.key === 'buz' ? 'Bölüm 1-50' : `Bölüm ${s.startLevel}-${s.endLevel}`,
   }));
 
   // Stage başına 50 level çiziyoruz → height 50 üzerinden.
@@ -99,13 +99,19 @@ export function StageCarousel({
 
   return (
     <div className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden">
-      <div className="flex items-center justify-between">
-        <div className="text-white/80 text-xs font-bold">
+      <div className="grid grid-cols-3 items-center">
+        <div className="text-white/80 text-xs font-bold justify-self-start">
           Kullanıcı: <span className="text-white">{username ?? '-'}</span>
         </div>
+        <button
+          onClick={onBack}
+          className="justify-self-center text-white/80 text-xs font-bold underline underline-offset-4"
+        >
+          Geri
+        </button>
         {onLogout && (
-          <button onClick={onLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
-            Çıkış
+          <button onClick={onLogout} className="justify-self-end text-white/70 text-xs font-bold underline underline-offset-4">
+            Kullanıcıdan çıkış
           </button>
         )}
       </div>
@@ -120,7 +126,11 @@ export function StageCarousel({
         {stages.map((stage) => {
           const levels = Array.from(
             { length: stage.endLevel - stage.startLevel + 1 },
-            (_, i) => stage.startLevel + i
+            (_, i) => {
+              const actualLevel = stage.startLevel + i;
+              const displayLevel = stage.key === 'buz' ? i + 1 : actualLevel;
+              return { actualLevel, displayLevel };
+            }
           );
 
           return (
@@ -141,31 +151,31 @@ export function StageCarousel({
                 <div className="mt-4 max-h-[58dvh] overflow-y-auto pr-1">
                   <div className="relative mx-auto w-full max-w-[260px] overflow-visible">
                     <div className="relative overflow-visible" style={{ height: totalHeight }}>
-                      {levels.map((level, idx) => {
-                        const isCompleted = completedSet.has(level);
-                        const isInProgress = level === currentLevel;
-                        const isUnlocked = level <= unlockedUntil;
+                      {levels.map(({ actualLevel, displayLevel }, idx) => {
+                        const isCompleted = completedSet.has(actualLevel);
+                        const isInProgress = actualLevel === currentLevel;
+                        const isUnlocked = actualLevel <= unlockedUntil;
 
                         // Zig-zag aynı kalsın ama idx üzerinden (stage içinde 1..50)
                         const offsetX = (idx + 1) % 2 === 0 ? stepX : -stepX;
 
-                        const bgColor = isCompleted
-                          ? 'rgba(16, 185, 129, 0.22)'
-                          : isInProgress
+                        const bgColor = isInProgress
                           ? 'rgba(249, 115, 22, 0.22)'
+                          : isCompleted
+                          ? 'rgba(16, 185, 129, 0.22)'
                           : 'rgba(255, 255, 255, 0.22)';
 
-                        const borderColor = isCompleted
-                          ? 'rgba(52, 211, 153, 0.45)'
-                          : isInProgress
+                        const borderColor = isInProgress
                           ? 'rgba(251, 146, 60, 0.45)'
+                          : isCompleted
+                          ? 'rgba(52, 211, 153, 0.45)'
                           : 'rgba(255, 255, 255, 0.35)';
 
                         const textColor = isUnlocked ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.75)';
 
                         return (
                           <motion.div
-                            key={level}
+                            key={actualLevel}
                             className="absolute z-10"
                             style={{
                               left: `calc(50% + ${offsetX}px)`,
@@ -198,10 +208,10 @@ export function StageCarousel({
                               whileTap={isUnlocked ? { scale: 0.95 } : undefined}
                               onClick={() => {
                                 if (!isUnlocked) return;
-                                onPickLevel(level);
+                                onPickLevel(actualLevel);
                               }}
                             >
-                              {level}
+                              {displayLevel}
                             </motion.button>
                           </motion.div>
                         );
@@ -215,9 +225,7 @@ export function StageCarousel({
         })}
       </div>
 
-      <button onClick={onBack} className="mt-4 w-full text-white/80 text-sm font-bold">
-        Geri
-      </button>
+      <div className="mt-4" />
     </div>
   );
 }

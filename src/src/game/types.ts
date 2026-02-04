@@ -17,7 +17,7 @@ export type CellType =
 
 export type GameStatus = 'playing' | 'won' | 'lost';
 
-export const MAX_LEVEL = 50;
+export const MAX_LEVEL = 250;
 
 export interface Position {
   x: number;
