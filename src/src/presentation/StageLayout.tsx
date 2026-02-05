@@ -6,6 +6,7 @@ type StageLayoutProps = {
   backgroundSrc: string;
   frameSrc: string;
   hudSrc: string;
+  hudOverlay?: ReactNode;
   frameWidth?: number;
   frameHeight?: number;
   mazeBounds?: {
@@ -21,6 +22,7 @@ export function StageLayout({
   backgroundSrc,
   frameSrc,
   hudSrc,
+  hudOverlay,
   frameWidth,
   frameHeight,
   mazeBounds,
@@ -56,6 +58,7 @@ export function StageLayout({
       >
         <img className="ice-stage__frame" src={frameSrc} alt="" aria-hidden="true" />
         <img className="ice-stage__hud" src={hudSrc} alt="" aria-hidden="true" />
+        {hudOverlay && <div className="ice-stage__hud-overlay">{hudOverlay}</div>}
         <div className="ice-stage__maze-slot" style={mazeStyle}>
           {children}
         </div>

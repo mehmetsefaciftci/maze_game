@@ -61,6 +61,58 @@
   pointer-events: none;
 }
 
+.ice-stage__hud-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ice-stage__hud-content {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 24px;
+  pointer-events: none;
+}
+
+.ice-stage__hud-pill {
+  display: grid;
+  gap: 2px;
+  color: #ffffff;
+  font-weight: 800;
+  text-align: center;
+  min-width: 70px;
+}
+
+.ice-stage__hud-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.9;
+}
+
+.ice-stage__hud-value {
+  font-size: 20px;
+  line-height: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.ice-stage__hud-menu {
+  pointer-events: auto;
+  border: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e7f8ff;
+  background: rgba(35, 161, 164, 0.95);
+  box-shadow: 0 6px 16px rgba(5, 46, 63, 0.45);
+}
+
 .ice-stage__frame-wrap {
   position: relative;
   z-index: 2;

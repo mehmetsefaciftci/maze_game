@@ -9,7 +9,7 @@ import type { CellType, Coin, Door, CoinColor } from '../game/types';
 import type { Position } from '../game/types';
 import { User, Flag, Lock } from 'lucide-react';
 
-type StageTheme = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan';
+type StageTheme = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan' | 'ice' | 'default';
 
 interface MazeGridProps {
   grid: CellType[][];
@@ -43,6 +43,18 @@ export const MazeGrid = memo(function MazeGrid({
 
   const themeTokens = {
     gezegen: {
+      grid: 'rounded-2xl bg-gradient-to-br from-indigo-900/80 to-purple-900/80 border-purple-500/30',
+      wall: 'bg-gradient-to-br from-blue-500 via-purple-600 to-pink-600 border border-purple-400/50',
+      wallShadow: 'inset 0 -2px 4px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
+      path: 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30',
+    },
+    ice: {
+      grid: 'rounded-2xl bg-gradient-to-br from-indigo-900/80 to-purple-900/80 border-purple-500/30',
+      wall: 'bg-gradient-to-br from-blue-500 via-purple-600 to-pink-600 border border-purple-400/50',
+      wallShadow: 'inset 0 -2px 4px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
+      path: 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30',
+    },
+    default: {
       grid: 'rounded-2xl bg-gradient-to-br from-indigo-900/80 to-purple-900/80 border-purple-500/30',
       wall: 'bg-gradient-to-br from-blue-500 via-purple-600 to-pink-600 border border-purple-400/50',
       wallShadow: 'inset 0 -2px 4px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
@@ -141,10 +153,8 @@ export const MazeGrid = memo(function MazeGrid({
                 rotate: [0, 180],
               }}
               transition={{
-                exit: {
-                  duration: 0.4,
-                  ease: 'easeOut',
-                }
+                duration: 0.4,
+                ease: 'easeOut',
               }}
             >
               <motion.div
@@ -382,6 +392,4 @@ const StaticGrid = memo(function StaticGrid({ grid, cellSizeClass, wallClass, wa
     </>
   );
 });
-
-
 

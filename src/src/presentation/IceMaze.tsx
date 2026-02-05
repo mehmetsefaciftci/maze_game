@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { CellType, Coin, Door, Position } from '../../game/types';
-import { MazeGrid } from './MazeGrid';
-import { StageLayout } from './StageLayout';
+import type { CellType, Coin, Door, Position } from '../game/types.ts';
+import { MazeGrid } from './MazeGrid.tsx';
+import { StageLayout } from './StageLayout.tsx';
 
 type Props = {
   grid: CellType[][];
@@ -10,6 +10,9 @@ type Props = {
   coins: Coin[];
   doors: Door[];
   collectedCoins: Set<string>;
+  level: number;
+  movesLeft: number;
+  onMenu: () => void;
 };
 
 const ICE_FRAME = {
@@ -24,9 +27,9 @@ const ICE_MAZE_BOUNDS = {
   height: 223,
 };
 
-const BUZ_CELL_PX = 16;
-const BUZ_GAP_PX = 2;
-const BUZ_PADDING_PX = 10;
+const ICE_CELL_PX = 24;
+const ICE_GAP_PX = 2;
+const ICE_PADDING_PX = 12;
 
 export function IceMaze(props: Props) {
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
@@ -36,8 +39,8 @@ export function IceMaze(props: Props) {
     const gridHeight = props.grid.length;
     if (!gridWidth || !gridHeight) return null;
 
-    const totalWidth = BUZ_PADDING_PX * 2 + gridWidth * BUZ_CELL_PX + (gridWidth - 1) * BUZ_GAP_PX;
-    const totalHeight = BUZ_PADDING_PX * 2 + gridHeight * BUZ_CELL_PX + (gridHeight - 1) * BUZ_GAP_PX;
+    const totalWidth = ICE_PADDING_PX * 2 + gridWidth * ICE_CELL_PX + (gridWidth - 1) * ICE_GAP_PX;
+    const totalHeight = ICE_PADDING_PX * 2 + gridHeight * ICE_CELL_PX + (gridHeight - 1) * ICE_GAP_PX;
     return { totalWidth, totalHeight };
   }, [props.grid]);
 
@@ -63,13 +66,28 @@ export function IceMaze(props: Props) {
       backgroundSrc="/stages/buz.jpg"
       frameSrc="/stages/ice-maze.png"
       hudSrc="/stages/buz-hud.png"
+      hudOverlay={
+        <div className="ice-stage__hud-content">
+          <div className="ice-stage__hud-pill ice-stage__hud-level">
+            <div className="ice-stage__hud-label">SEVİYE</div>
+            <div className="ice-stage__hud-value">{props.level}</div>
+          </div>
+          <div className="ice-stage__hud-pill ice-stage__hud-moves">
+            <div className="ice-stage__hud-label">KALAN HAMLE</div>
+            <div className="ice-stage__hud-value">{props.movesLeft}</div>
+          </div>
+          <button type="button" className="ice-stage__hud-menu" onClick={props.onMenu}>
+            Menü
+          </button>
+        </div>
+      }
       frameWidth={ICE_FRAME.width}
       frameHeight={ICE_FRAME.height}
       mazeBounds={ICE_MAZE_BOUNDS}
     >
       <div ref={mazeSlotRef} className="ice-stage__maze">
         <div style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}>
-          <MazeGrid {...props} theme="buz" />
+          <MazeGrid {...props} theme="ice" />
         </div>
       </div>
     </StageLayout>

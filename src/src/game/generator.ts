@@ -29,6 +29,7 @@ type SpecialLevelConfig = {
   build: (gridWidth: number, gridHeight: number) => Grid;
   coins: Coin[];
   doors: Door[];
+  gridSize?: number;
 };
 
 type PathCacheEntry = {
@@ -43,6 +44,7 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     level: 7,
     seed: 1213,
     build: buildLevel7Grid,
+    gridSize: 6,
     coins: [
       { position: { x: 1, y: 5 }, color: 'red' },
       { position: { x: 11, y: 9 }, color: 'blue' },
@@ -56,6 +58,7 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     level: 8,
     seed: 1221,
     build: buildLevel8Grid,
+    gridSize: 6,
     coins: [
       { position: { x: 3, y: 3 }, color: 'red' },
       { position: { x: 11, y: 7 }, color: 'blue' },
@@ -68,9 +71,34 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     ],
   },
   {
+    level: 12,
+    seed: 1084,
+    build: buildLevel12Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+  },
+  {
+    level: 15,
+    seed: 1105,
+    build: buildLevel15Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+  },
+  {
+    level: 17,
+    seed: 1320,
+    build: buildLevel17Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+  },
+  {
     level: 18,
     seed: 1327,
     build: buildLevel18Grid,
+    gridSize: 10,
     coins: [
       { position: { x: 1, y: 5 }, color: 'red' },
       { position: { x: 19, y: 7 }, color: 'blue' },
@@ -86,6 +114,7 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     level: 19,
     seed: 1334,
     build: buildLevel19Grid,
+    gridSize: 10,
     coins: [
       { position: { x: 1, y: 7 }, color: 'red' },
       { position: { x: 15, y: 9 }, color: 'blue' },
@@ -101,6 +130,7 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     level: 20,
     seed: 1341,
     build: buildLevel20Grid,
+    gridSize: 10,
     coins: [
       { position: { x: 1, y: 7 }, color: 'red' },
       { position: { x: 19, y: 9 }, color: 'blue' },
@@ -111,6 +141,22 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
       { position: { x: 9, y: 9 }, color: 'blue' },
       { position: { x: 3, y: 19 }, color: 'green' },
     ],
+  },
+  {
+    level: 50,
+    seed: 1350,
+    build: buildLevel50Grid,
+    gridSize: 10,
+    coins: [],
+    doors: [],
+  },
+  {
+    level: 51,
+    seed: 1357,
+    build: buildLevel51Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
   },
 ];
 
@@ -245,7 +291,10 @@ export function generateMaze(params: LevelParams): {
 
   // Generate coins and doors based on level
   const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng, pathCacheKey);
-  if (!specialBySeed) {
+  const usesSpecialCoins = Boolean(
+    specialBySeed && (specialBySeed.coins.length > 0 || specialBySeed.doors.length > 0)
+  );
+  if (!usesSpecialCoins) {
     enforceCoinBeforeDoor(grid, startPos, exitPos, coins, doors);
   }
 
@@ -351,12 +400,18 @@ function findShortestPath(
  * Get level configuration based on level number
  */
 export function getLevelConfig(level: number): LevelParams {
-  // Increase grid size every 3 levels
+  // Increase grid size every 3 levels, cap for performance
   const baseSize = 4;
-  const gridSize = baseSize + Math.floor(level / 3);
-  
+  const maxGridSize = 11;
+  const growthSize = Math.min(baseSize + Math.floor(level / 3), maxGridSize);
+  const special = getSpecialByLevel(level);
+  // Keep grid size fixed after level 7 (7 -> size 6 -> 13x13 grid),
+  // but allow special levels to override for handcrafted layouts.
+  const cappedSize = level <= 7 ? growthSize : Math.min(growthSize, 6);
+  const gridSize = special?.gridSize ?? cappedSize;
+
   // Complexity increases with level (but caps at 0.8)
-  const complexity = Math.min(0.3 + level * 0.05, 0.8);
+  const complexity = Math.min(0.35 + level * 0.06, 0.9);
   
   // Deterministic seed based on level
   // Level 3 and special levels get custom seeds for better layouts
@@ -364,7 +419,6 @@ export function getLevelConfig(level: number): LevelParams {
   if (level === 3) {
     seed = 1050; // Special seed for level 3 redesign
   } else {
-    const special = getSpecialByLevel(level);
     seed = special ? special.seed : 1000 + level * 7;
   }
   
@@ -389,8 +443,12 @@ export function calculateMoveLimit(solutionLength: number, level: number): numbe
   if (level === 22) {
     extra = 8;
   }
+  if (level === 51) {
+    extra = 18;
+  }
+  const advancedPenalty = level >= 22 && level <= 50 ? 6 : 0;
   
-  return Math.max(solutionLength + buffer - levelPenalty + extra, solutionLength + 2);
+  return Math.max(solutionLength + buffer - levelPenalty - advancedPenalty + extra, solutionLength + 2);
 }
 
 /**
@@ -418,11 +476,15 @@ function generateCoinsAndDoors(
   if (actualLevel < 2) return { coins, doors };
 
   if (actualLevel >= 22) {
-    return generateCoinsAndDoorsByShortestPath(grid, startPos, exitPos, actualLevel, rng, pathCacheKey);
+    const advanced = generateCoinsAndDoorsByShortestPath(grid, startPos, exitPos, actualLevel, rng, pathCacheKey);
+    if (advanced.coins.length >= 3 && advanced.doors.length >= 3) {
+      return advanced;
+    }
+    return ensureMinimumCoinDoorPair(grid, startPos, exitPos, rng, pathCacheKey, 3);
   }
 
   const special = getSpecialBySeed(params.seed);
-  if (special) {
+  if (special && (special.coins.length > 0 || special.doors.length > 0)) {
     return { coins: special.coins, doors: special.doors };
   }
   
@@ -499,6 +561,49 @@ function generateCoinsAndDoors(
     }
   }
   
+  return { coins, doors };
+}
+
+function ensureMinimumCoinDoorPair(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  rng: SeededRandom,
+  pathCacheKey: string,
+  minPairs: number
+): { coins: Coin[]; doors: Door[] } {
+  const coins: Coin[] = [];
+  const doors: Door[] = [];
+  const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+
+  const { path: mainPath } = getPathAndDistanceMap(grid, startPos, exitPos, pathCacheKey);
+  const usablePath = mainPath.filter(
+    (pos) =>
+      !(pos.x === startPos.x && pos.y === startPos.y) &&
+      !(pos.x === exitPos.x && pos.y === exitPos.y)
+  );
+
+  if (usablePath.length < 4) {
+    return { coins, doors };
+  }
+
+  const pairs = Math.min(Math.max(1, minPairs), colors.length, Math.floor(usablePath.length / 3));
+  const segmentSize = Math.floor(usablePath.length / (pairs + 1));
+  for (let i = 0; i < pairs; i++) {
+    const color = colors[i];
+    const segStart = i * segmentSize;
+    const segEnd = Math.min((i + 1) * segmentSize, usablePath.length - 1);
+    if (segEnd - segStart < 2) continue;
+
+    const coinIndex = rng.nextInt(segStart, Math.max(segStart, segEnd - 1));
+    const doorIndex = rng.nextInt(coinIndex + 1, segEnd);
+    const coinPos = usablePath[coinIndex];
+    const doorPos = usablePath[doorIndex];
+
+    coins.push({ position: { x: coinPos.x, y: coinPos.y }, color });
+    doors.push({ position: { x: doorPos.x, y: doorPos.y }, color });
+  }
+
   return { coins, doors };
 }
 
@@ -653,10 +758,12 @@ function generateCoinsAndDoorsByShortestPath(
 
   const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
   const maxPairs = Math.min(Math.floor((level - 1) / 3) + 1, colors.length);
+  const desiredPairs =
+    level >= 22 && level <= 50 ? Math.min(colors.length, Math.max(3, Math.floor(level / 5))) : maxPairs;
 
   const slidePath = findShortestSlidePathPositions(grid, startPos, exitPos);
   if (slidePath.length < 3) {
-    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng, pathCacheKey);
+    return generateCoinsAndDoorsFallback(grid, startPos, exitPos, desiredPairs, rng, pathCacheKey);
   }
 
   const usablePath = slidePath.filter(
@@ -668,7 +775,7 @@ function generateCoinsAndDoorsByShortestPath(
     return generateCoinsAndDoorsFallback(grid, startPos, exitPos, maxPairs, rng, pathCacheKey);
   }
 
-  let pairs = Math.min(maxPairs, Math.floor(usablePath.length / 3));
+  let pairs = Math.min(desiredPairs, Math.floor(usablePath.length / 3));
   if (pairs === 0) pairs = 1;
   if (pairs <= 0) return { coins, doors };
 
@@ -709,7 +816,7 @@ function generateCoinsAndDoorsFallback(
   const doors: Door[] = [];
 
   const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
-  const usedColors = colors.slice(0, Math.max(1, maxPairs));
+  const usedColors = colors.slice(0, Math.max(1, Math.min(colors.length, maxPairs)));
 
   const { path: mainPath } = getPathAndDistanceMap(grid, startPos, exitPos, pathCacheKey);
   const usablePath = mainPath.filter(
@@ -903,6 +1010,79 @@ function buildSlideSnakeGrid(gridWidth: number, gridHeight: number): Grid {
 }
 
 /**
+ * Build a stable Level 12 grid aligned to slide mechanics.
+ */
+function buildLevel12Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+/**
+ * Build a more complex Level 15 grid aligned to slide mechanics.
+ */
+function buildLevel15Grid(gridWidth: number, gridHeight: number): Grid {
+  const segments: GridSegment[] = [
+    { x1: 1, y1: 1, x2: 11, y2: 1 },
+    { x1: 11, y1: 1, x2: 11, y2: 5 },
+    { x1: 11, y1: 5, x2: 3, y2: 5 },
+    { x1: 3, y1: 5, x2: 3, y2: 9 },
+    { x1: 3, y1: 9, x2: 11, y2: 9 },
+    { x1: 11, y1: 9, x2: 11, y2: 11 },
+    { x1: 11, y1: 11, x2: 1, y2: 11 },
+    { x1: 1, y1: 11, x2: 1, y2: 3 },
+    { x1: 1, y1: 3, x2: 7, y2: 3 },
+    { x1: 7, y1: 3, x2: 7, y2: 7 },
+    { x1: 7, y1: 7, x2: 5, y2: 7 },
+    { x1: 5, y1: 7, x2: 5, y2: 3 },
+  ];
+
+  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
+  openStartExit(grid, gridWidth, gridHeight);
+  return grid;
+}
+
+/**
+ * Build a stable Level 17 grid aligned to slide mechanics.
+ */
+function buildLevel17Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+/**
+ * Build the most complex Level 50 grid aligned to slide mechanics.
+ */
+function buildLevel50Grid(gridWidth: number, gridHeight: number): Grid {
+  const segments: GridSegment[] = [
+    { x1: 1, y1: 1, x2: gridWidth - 2, y2: 1 },
+    { x1: gridWidth - 2, y1: 1, x2: gridWidth - 2, y2: gridHeight - 2 },
+    { x1: gridWidth - 2, y1: gridHeight - 2, x2: 1, y2: gridHeight - 2 },
+    { x1: 1, y1: gridHeight - 2, x2: 1, y2: 3 },
+
+    { x1: 3, y1: 3, x2: gridWidth - 4, y2: 3 },
+    { x1: gridWidth - 4, y1: 3, x2: gridWidth - 4, y2: gridHeight - 4 },
+    { x1: gridWidth - 4, y1: gridHeight - 4, x2: 3, y2: gridHeight - 4 },
+    { x1: 3, y1: gridHeight - 4, x2: 3, y2: 5 },
+
+    { x1: 5, y1: 5, x2: gridWidth - 6, y2: 5 },
+    { x1: gridWidth - 6, y1: 5, x2: gridWidth - 6, y2: gridHeight - 6 },
+    { x1: gridWidth - 6, y1: gridHeight - 6, x2: 5, y2: gridHeight - 6 },
+    { x1: 5, y1: gridHeight - 6, x2: 5, y2: 7 },
+
+    { x1: 7, y1: 7, x2: gridWidth - 8, y2: 7 },
+    { x1: gridWidth - 8, y1: 7, x2: gridWidth - 8, y2: gridHeight - 8 },
+    { x1: gridWidth - 8, y1: gridHeight - 8, x2: 7, y2: gridHeight - 8 },
+    { x1: 7, y1: gridHeight - 8, x2: 7, y2: 9 },
+
+    { x1: 9, y1: 9, x2: gridWidth - 10, y2: 9 },
+    { x1: gridWidth - 10, y1: 9, x2: gridWidth - 10, y2: gridHeight - 10 },
+    { x1: gridWidth - 10, y1: gridHeight - 10, x2: 9, y2: gridHeight - 10 },
+  ];
+
+  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
+  openStartExit(grid, gridWidth, gridHeight);
+  return grid;
+}
+
+/**
  * Build a hand-shaped Level 7 grid with more stopping points
  */
 function buildLevel7Grid(gridWidth: number, gridHeight: number): Grid {
@@ -1073,6 +1253,13 @@ function buildLevel23Grid(gridWidth: number, gridHeight: number): Grid {
     grid[12][7] = 'wall';
   }
   return grid;
+}
+
+/**
+ * Build Level 51 grid from a fixed 23x23 layout.
+ */
+function buildLevel51Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 
 /**

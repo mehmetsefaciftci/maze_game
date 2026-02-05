@@ -161,13 +161,13 @@ export function StageCarousel({
                           ? 'rgba(249, 115, 22, 0.22)'
                           : isCompleted
                           ? 'rgba(16, 185, 129, 0.22)'
-                          : 'rgba(255, 255, 255, 0.22)';
+                          : 'rgba(148, 163, 184, 0.22)';
 
                         const borderColor = isInProgress
                           ? 'rgba(251, 146, 60, 0.45)'
                           : isCompleted
                           ? 'rgba(52, 211, 153, 0.45)'
-                          : 'rgba(255, 255, 255, 0.35)';
+                          : 'rgba(148, 163, 184, 0.45)';
 
                         const textColor = isUnlocked ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.75)';
 

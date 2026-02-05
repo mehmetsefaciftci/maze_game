@@ -115,6 +115,8 @@ export function GameScreen() {
   const [stagePopupOpen, setStagePopupOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<StageKey>('gezegen');
   const [paused, setPaused] = useState(false);
+  const mazeSlotRef = useRef<HTMLDivElement | null>(null);
+  const [mazeScale, setMazeScale] = useState(1);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -129,6 +131,41 @@ export function GameScreen() {
   const isFinalLevel = state.level >= MAX_LEVEL;
   const currentStage = useMemo(() => getStageForLevel(state.level), [state.level]);
   const canUseDom = typeof document !== 'undefined';
+  const mazeSize = useMemo(() => {
+    const gridWidth = grid[0]?.length ?? 0;
+    const gridHeight = grid.length;
+    if (!gridWidth || !gridHeight) return null;
+
+    const isIceTheme = currentStage === 'buz';
+    const cellPx = isIceTheme ? 16 : 24;
+    const gapPx = 2;
+    const paddingPx = isIceTheme ? 10 : 12;
+    const totalWidth = paddingPx * 2 + gridWidth * cellPx + (gridWidth - 1) * gapPx;
+    const totalHeight = paddingPx * 2 + gridHeight * cellPx + (gridHeight - 1) * gapPx;
+    const level8GridSize = 13;
+    const baseWidth = paddingPx * 2 + level8GridSize * cellPx + (level8GridSize - 1) * gapPx;
+    const baseHeight = paddingPx * 2 + level8GridSize * cellPx + (level8GridSize - 1) * gapPx;
+    return { totalWidth, totalHeight, baseWidth, baseHeight };
+  }, [grid, currentStage]);
+
+  useEffect(() => {
+    if (!mazeSlotRef.current || !mazeSize) return;
+
+    const updateScale = () => {
+      if (!mazeSlotRef.current) return;
+      const rect = mazeSlotRef.current.getBoundingClientRect();
+      const targetWidth = Math.max(mazeSize.totalWidth, mazeSize.baseWidth);
+      const targetHeight = Math.max(mazeSize.totalHeight, mazeSize.baseHeight);
+      const nextScale = Math.min(rect.width / targetWidth, rect.height / targetHeight);
+      setMazeScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(mazeSlotRef.current);
+
+    return () => observer.disconnect();
+  }, [mazeSize]);
 
   // Boot: load logged user (if exists)
   useEffect(() => {
@@ -322,7 +359,7 @@ export function GameScreen() {
 
   const completedSet = useMemo(() => new Set(progressData.completedLevels), [progressData.completedLevels]);
   const highestCompletedLevel = getHighestCompleted(progressData.completedLevels);
-  const unlockedUntil = Math.max(highestCompletedLevel + 1, progressData.currentLevel);
+  const unlockedUntil = Math.max(highestCompletedLevel + 2, progressData.currentLevel);
   const selectedStageInfo = useMemo(
     () => STAGES.find((s) => s.key === selectedStage) ?? STAGES[0],
     [selectedStage]
@@ -394,79 +431,83 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
-          {/* Header */}
           <div className="px-4 py-4 relative z-10">
-              <div className="relative z-10 max-w-md mx-auto space-y-3">
-                <div className="flex items-center justify-between gap-3">
+            <div className="relative z-10 max-w-md mx-auto space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
+                  style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
+                >
+                  <div className="text-xs font-bold opacity-80">SEVİYE</div>
+                  <div className="text-2xl font-black tabular-nums">{state.level}</div>
+                </motion.div>
+
+                {state.coins.length > 0 && (
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                    style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
+                    className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
+                    style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
                   >
-                    <div className="text-xs font-bold opacity-80">SEVİYE</div>
-                    <div className="text-2xl font-black tabular-nums">{state.level}</div>
+                    <Coins className="w-5 h-5" strokeWidth={2.5} />
+                    <div className="text-xl font-black tabular-nums">
+                      {state.collectedCoins.size}/{state.coins.length}
+                    </div>
                   </motion.div>
+                )}
 
-                  {state.coins.length > 0 && (
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
-                      style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
-                    >
-                      <Coins className="w-5 h-5" strokeWidth={2.5} />
-                      <div className="text-xl font-black tabular-nums">
-                        {state.collectedCoins.size}/{state.coins.length}
-                      </div>
-                    </motion.div>
-                  )}
+                <motion.div
+                  key={state.movesLeft}
+                  initial={{ scale: 1.3, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
+                  style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
+                >
+                  <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
+                  <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
+                </motion.div>
 
-                  <motion.div
-                    key={state.movesLeft}
-                    initial={{ scale: 1.3, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                    style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
-                  >
-                    <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
-                    <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
-                  </motion.div>
+                <button
+                  onClick={handlePauseToggle}
+                  className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                >
+                  Duraklat
+                </button>
+              </div>
 
-                  <button
-                    onClick={handlePauseToggle}
-                    className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
-                  >
-                    Duraklat
-                  </button>
-                </div>
-
-                <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </div>
+              <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
               </div>
             </div>
+          </div>
 
-          <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+          <div className="flex-1 min-h-0 w-full p-4 relative z-10 flex items-center justify-center">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.3 }}
+              className="w-full h-full flex items-center justify-center"
             >
-                <MazeGrid
-                  grid={grid}
-                  playerPos={state.playerPos}
-                  exitPos={state.exitPos}
-                  coins={state.coins}
-                  doors={state.doors}
-                  collectedCoins={state.collectedCoins}
-                  theme={currentStage === 'buz' ? 'gezegen' : currentStage}
-                />
+              <div ref={mazeSlotRef} className="w-full h-full flex items-center justify-center">
+                <div style={{ transform: `scale(${mazeScale})`, transformOrigin: 'center' }}>
+                  <MazeGrid
+                    grid={grid}
+                    playerPos={state.playerPos}
+                    exitPos={state.exitPos}
+                    coins={state.coins}
+                    doors={state.doors}
+                    collectedCoins={state.collectedCoins}
+                    theme={currentStage === 'buz' ? 'gezegen' : currentStage}
+                  />
+                </div>
+              </div>
             </motion.div>
           </div>
 
@@ -607,13 +648,13 @@ export function GameScreen() {
                               ? 'rgba(249, 115, 22, 0.22)'
                               : isCompleted
                               ? 'rgba(16, 185, 129, 0.22)'
-                              : 'rgba(255, 255, 255, 0.22)';
+                              : 'rgba(148, 163, 184, 0.22)';
 
                             const borderColor = isInProgress
                               ? 'rgba(251, 146, 60, 0.45)'
                               : isCompleted
                               ? 'rgba(52, 211, 153, 0.45)'
-                              : 'rgba(255, 255, 255, 0.35)';
+                              : 'rgba(148, 163, 184, 0.45)';
 
                             const textColor = isUnlocked ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.75)';
 
