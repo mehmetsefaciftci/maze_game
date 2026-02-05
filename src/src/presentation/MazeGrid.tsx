@@ -5,7 +5,6 @@
 
 import { memo } from 'react';
 import { motion } from 'motion/react';
-import type { CSSProperties } from 'react';
 import type { CellType, Coin, Door, CoinColor } from '../game/types';
 import type { Position } from '../game/types';
 import { User, Flag, Lock } from 'lucide-react';
@@ -20,8 +19,6 @@ interface MazeGridProps {
   doors: Door[];
   collectedCoins: Set<string>;
   theme?: StageTheme;
-  frameSrc?: string | null;
-  frameStyle?: CSSProperties;
 }
 
 export const MazeGrid = memo(function MazeGrid({
@@ -32,8 +29,6 @@ export const MazeGrid = memo(function MazeGrid({
   doors,
   collectedCoins,
   theme = 'gezegen',
-  frameSrc = null,
-  frameStyle,
 }: MazeGridProps) {
   const height = grid.length;
   const width = grid[0]?.length ?? 0;
@@ -54,10 +49,10 @@ export const MazeGrid = memo(function MazeGrid({
       path: 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30',
     },
     buz: {
-      grid: 'rounded-3xl bg-gradient-to-b from-sky-100/80 via-cyan-200/70 to-sky-300/80 border-cyan-200/70 shadow-cyan-500/30',
-      wall: 'bg-gradient-to-br from-cyan-300 via-blue-500 to-blue-700 border-t border-white/40',
-      wallShadow: 'inset 0 2px 6px rgba(255,255,255,0.5), inset 0 -3px 6px rgba(0,0,0,0.35)',
-      path: 'bg-blue-900/20 shadow-[inset_0_0_12px_rgba(0,0,0,0.5)] border border-white/5',
+      grid: 'rounded-3xl bg-transparent border-transparent shadow-none',
+      wall: 'bg-transparent border-transparent',
+      wallShadow: 'none',
+      path: 'bg-transparent border-transparent',
     },
     toprak: {
       grid: 'rounded-2xl bg-gradient-to-br from-emerald-900/80 to-green-900/80 border-emerald-500/30',
@@ -80,6 +75,9 @@ export const MazeGrid = memo(function MazeGrid({
   } as const;
 
   const activeTheme = themeTokens[theme];
+  const wallClass = activeTheme.wall;
+  const pathClass = activeTheme.path;
+  const wallShadow = activeTheme.wallShadow;
   
   // Color mapping
   const getColorClasses = (color: CoinColor) => {
@@ -97,7 +95,7 @@ export const MazeGrid = memo(function MazeGrid({
     <div className="relative inline-block">
       <div
         className={[
-          'relative inline-grid backdrop-blur-sm p-3 shadow-2xl border-2 z-10',
+          'relative inline-grid backdrop-blur-sm p-3 shadow-2xl border-2 z-0',
           gapClass,
           activeTheme.grid,
         ].join(' ')}
@@ -108,9 +106,9 @@ export const MazeGrid = memo(function MazeGrid({
         <StaticGrid
           grid={grid}
           cellSizeClass={cellSizeClass}
-          wallClass={activeTheme.wall}
-          wallShadow={activeTheme.wallShadow}
-          pathClass={activeTheme.path}
+          wallClass={wallClass}
+          wallShadow={wallShadow}
+          pathClass={pathClass}
         />
         
         {/* Coins */}
@@ -312,14 +310,6 @@ export const MazeGrid = memo(function MazeGrid({
             <User className="w-2 h-2 text-white" strokeWidth={3} />
           </motion.div>
         </motion.div>
-        {theme === 'buz' && frameSrc && (
-          <img
-            src={frameSrc}
-            alt=""
-            className="absolute pointer-events-none select-none z-20 object-contain"
-            style={frameStyle}
-          />
-        )}
       </div>
     </div>
   );
@@ -392,3 +382,7 @@ const StaticGrid = memo(function StaticGrid({ grid, cellSizeClass, wallClass, wa
     </>
   );
 });
+
+
+
+

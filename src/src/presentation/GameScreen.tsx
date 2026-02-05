@@ -15,6 +15,7 @@
  */
 
 import { useReducer, useEffect, useRef, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { TouchEvent } from 'react';
 import { motion } from 'motion/react';
 import { Coins } from 'lucide-react';
@@ -122,13 +123,13 @@ export function GameScreen() {
   const [progressData, setProgressData] = useState<UserProgress>(defaultProgress());
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-
   const grid = useMemo(() => getGridForRender(state), [state]);
   const canUndoMove = useMemo(() => canUndo(state), [state]);
   const progress = useMemo(() => getProgress(state), [state]);
   const isGameActive = screen === 'game' && state.status === 'playing' && !paused;
   const isFinalLevel = state.level >= MAX_LEVEL;
   const currentStage = useMemo(() => getStageForLevel(state.level), [state.level]);
+  const canUseDom = typeof document !== 'undefined';
 
   // Boot: load logged user (if exists)
   useEffect(() => {
@@ -254,6 +255,7 @@ export function GameScreen() {
     if (isFinalLevel) return;
     dispatch({ type: 'NEXT_LEVEL' });
   };
+
   const handlePauseToggle = () => setPaused((prev) => !prev);
   const handleResume = () => setPaused(false);
   const handlePauseMenu = () => {
@@ -326,39 +328,43 @@ export function GameScreen() {
     () => STAGES.find((s) => s.key === selectedStage) ?? STAGES[0],
     [selectedStage]
   );
-  const selectedStageRangeText =
-    selectedStageInfo.key === 'buz'
-      ? 'Bölüm 1-50'
-      : `Bölüm ${selectedStageInfo.startLevel}-${selectedStageInfo.endLevel}`;
+  const selectedStageRangeText = `Bölüm 1-${selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1}`;
 
   return (
     <div
-      className="min-h-dvh w-full flex flex-col bg-gradient-to-b from-indigo-950 via-purple-950 to-indigo-900 overflow-hidden select-none relative"
+      className={[
+        'min-h-dvh w-full flex flex-col overflow-hidden select-none relative isolate z-0',
+        currentStage === 'buz'
+          ? 'bg-black'
+          : 'bg-gradient-to-b from-indigo-950 via-purple-950 to-indigo-900',
+      ].join(' ')}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Animated background stars */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-white rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              opacity: [0.2, 1, 0.2],
-              scale: [1, 1.5, 1],
-            }}
-            transition={{
-              duration: 2 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
-          />
-        ))}
-      </div>
+      {currentStage !== 'buz' && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                opacity: [0.2, 1, 0.2],
+                scale: [1, 1.5, 1],
+              }}
+              transition={{
+                duration: 2 + Math.random() * 2,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* AUTH */}
       {screen === 'auth' ? (
@@ -396,103 +402,95 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
+          {/* Header */}
+          {currentStage !== 'buz' && (
+            <div className="px-4 py-4 relative z-10">
+              <div className="relative z-10 max-w-md mx-auto space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
+                    style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
+                  >
+                    <div className="text-xs font-bold opacity-80">SEVİYE</div>
+                    <div className="text-2xl font-black tabular-nums">{state.level}</div>
+                  </motion.div>
+
+                  {state.coins.length > 0 && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
+                      style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
+                    >
+                      <Coins className="w-5 h-5" strokeWidth={2.5} />
+                      <div className="text-xl font-black tabular-nums">
+                        {state.collectedCoins.size}/{state.coins.length}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <motion.div
+                    key={state.movesLeft}
+                    initial={{ scale: 1.3, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
+                    style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
+                  >
+                    <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
+                    <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
+                  </motion.div>
+
+                  <button
+                    onClick={handlePauseToggle}
+                    className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                  >
+                    Duraklat
+                  </button>
+                </div>
+
+                <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {currentStage === 'buz' ? (
-            <IceMaze level={state.level} movesLeft={state.movesLeft} onPause={handlePauseToggle}>
-              <MazeGrid
+            <div className="flex-1 w-full relative z-10">
+              <IceMaze
                 grid={grid}
                 playerPos={state.playerPos}
                 exitPos={state.exitPos}
                 coins={state.coins}
                 doors={state.doors}
                 collectedCoins={state.collectedCoins}
-                theme="buz"
-                frameSrc="/ice/ice-maze.png"
-                frameStyle={{
-                  left: '6%',
-                  top: '6%',
-                  width: '18%',
-                  height: '32%',
-                }}
               />
-            </IceMaze>
+            </div>
           ) : (
-            <>
-              {/* Header */}
-              <div className="px-4 py-4 relative z-10">
-                <div className="relative z-10 max-w-md mx-auto space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                  style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
-                >
-                  <div className="text-xs font-bold opacity-80">SEVİYE</div>
-                  <div className="text-2xl font-black tabular-nums">{state.level}</div>
-                </motion.div>
-
-                {state.coins.length > 0 && (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
-                    style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
-                  >
-                    <Coins className="w-5 h-5" strokeWidth={2.5} />
-                    <div className="text-xl font-black tabular-nums">
-                      {state.collectedCoins.size}/{state.coins.length}
-                    </div>
-                  </motion.div>
-                )}
-
-                <motion.div
-                  key={state.movesLeft}
-                  initial={{ scale: 1.3, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                  style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
-                >
-                  <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
-                  <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
-                </motion.div>
-
-                <button
-                  onClick={handlePauseToggle}
-                  className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
-                >
-                  Duraklat
-                </button>
-              </div>
-
-              <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
+            <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <MazeGrid
+                  grid={grid}
+                  playerPos={state.playerPos}
+                  exitPos={state.exitPos}
+                  coins={state.coins}
+                  doors={state.doors}
+                  collectedCoins={state.collectedCoins}
+                  theme={currentStage}
                 />
-              </div>
-                </div>
-              </div>
-
-              <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <MazeGrid
-                    grid={grid}
-                    playerPos={state.playerPos}
-                    exitPos={state.exitPos}
-                    coins={state.coins}
-                    doors={state.doors}
-                    collectedCoins={state.collectedCoins}
-                    theme={currentStage}
-                  />
-                </motion.div>
-              </div>
-            </>
+              </motion.div>
+            </div>
           )}
 
           <ResultDialog
@@ -504,35 +502,46 @@ export function GameScreen() {
             onNextLevel={handleNextLevel}
             onMenu={handleMenuReturn}
           />
-          {paused && (
-            <>
-              <div className="fixed inset-0 z-30 bg-black/60" onClick={handleResume} />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 flex items-center justify-center p-4"
-              >
-                <div className="w-full max-w-xs bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl text-center">
-                  <div className="text-white font-black text-xl">Duraklatıldı</div>
-                  <div className="mt-4 space-y-3">
-                    <button
-                      onClick={handleResume}
-                      className="w-full bg-gradient-to-r from-cyan-400 to-blue-600 text-white py-3 rounded-2xl font-black shadow-2xl"
-                    >
-                      Devam Et
-                    </button>
-                    <button
-                      onClick={handlePauseMenu}
-                      className="w-full bg-white/10 text-white py-3 rounded-2xl font-black border border-white/20"
-                    >
-                      Menüye Dön
-                    </button>
+          {paused &&
+            canUseDom &&
+            createPortal(
+              <>
+                <div
+                  className="fixed inset-0 bg-black/70"
+                  style={{ zIndex: 2147483646, position: 'fixed', inset: 0 }}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="fixed inset-0 flex items-center justify-center p-4"
+                  style={{ zIndex: 2147483647, position: 'fixed', inset: 0 }}
+                >
+                  <div className="w-full max-w-[260px] text-center">
+                    <div className="relative rounded-3xl px-5 pt-5 pb-4 bg-gradient-to-b from-fuchsia-600 via-pink-500 to-orange-400 shadow-[0_22px_60px_rgba(0,0,0,0.5)] border border-white/25">
+                      <div className="text-white font-black text-xl tracking-tight">Duraklatıldı</div>
+                      <div className="text-white/80 text-xs mt-1">Kaldığın yerden devam edebilirsin.</div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-2">
+                        <button
+                          onClick={handleResume}
+                          className="py-2.5 rounded-2xl font-black text-purple-700 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.25)]"
+                        >
+                          Devam Et
+                        </button>
+                        <button
+                          onClick={handlePauseMenu}
+                          className="py-2.5 rounded-2xl font-black text-white bg-white/15 border border-white/30 shadow-[0_8px_20px_rgba(0,0,0,0.22)]"
+                        >
+                          Menüye Dön
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            </>
-          )}
+                </motion.div>
+              </>,
+              document.body
+            )}
         </>
       ) : screen === 'stages' ? (
         <div className="flex-1 flex items-center justify-center p-4 relative z-10">
@@ -567,9 +576,30 @@ export function GameScreen() {
             </div>
 
             <div className="mt-5 space-y-3">
-              <div className="relative w-full text-left bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-                <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-fuchsia-400/40 to-cyan-300/30 blur-xl" />
-                <div className="absolute -bottom-20 -left-16 w-44 h-44 rounded-full bg-gradient-to-br from-orange-300/20 to-pink-400/30 blur-2xl" />
+              <div
+                className={[
+                  'relative w-full text-left text-white p-4 rounded-2xl shadow-2xl border border-white/20 overflow-hidden',
+                  selectedStageInfo.key === 'buz'
+                    ? 'bg-gradient-to-br from-slate-900 via-sky-900 to-cyan-900'
+                    : 'bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900',
+                ].join(' ')}
+              >
+                <div
+                  className={[
+                    'absolute -top-16 -right-16 w-40 h-40 rounded-full blur-xl',
+                    selectedStageInfo.key === 'buz'
+                      ? 'bg-gradient-to-br from-cyan-300/40 to-white/20'
+                      : 'bg-gradient-to-br from-fuchsia-400/40 to-cyan-300/30',
+                  ].join(' ')}
+                />
+                <div
+                  className={[
+                    'absolute -bottom-20 -left-16 w-44 h-44 rounded-full blur-2xl',
+                    selectedStageInfo.key === 'buz'
+                      ? 'bg-gradient-to-br from-blue-300/25 to-sky-400/25'
+                      : 'bg-gradient-to-br from-orange-300/20 to-pink-400/30',
+                  ].join(' ')}
+                />
 
                 <div className="mt-2 max-h-[58dvh] overflow-y-auto pr-1">
                   <div className="relative mx-auto w-full max-w-[260px] overflow-visible">
@@ -582,8 +612,7 @@ export function GameScreen() {
                         { length: selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1 },
                         (_, i) => {
                           const actualLevel = selectedStageInfo.startLevel + i;
-                          const displayLevel = selectedStageInfo.key === 'buz' ? i + 1 : actualLevel;
-                          return { actualLevel, displayLevel };
+                          return { actualLevel, displayLevel: i + 1 };
                         }
                       );
 
@@ -592,7 +621,9 @@ export function GameScreen() {
                           {levels.map(({ actualLevel, displayLevel }, idx) => {
                             const isCompleted = completedSet.has(actualLevel);
                             const isInProgress = actualLevel === progressData.currentLevel;
-                            const isUnlocked = actualLevel <= unlockedUntil;
+                            const isUnlocked =
+                              actualLevel <= unlockedUntil ||
+                              (selectedStageInfo.key === 'buz' && actualLevel === selectedStageInfo.startLevel);
                             const offsetX = (idx + 1) % 2 === 0 ? stepX : -stepX;
 
                             const bgColor = isInProgress
@@ -716,7 +747,7 @@ export function GameScreen() {
                       <button
                         key={stage.key}
                         onClick={() => handleSelectStage(stage.key)}
-                        className="overflow-hidden rounded-2xl border border-white/20 text-left text-white"
+                        className="overflow-hidden rounded-2xl border border-white/20 text-left text-white cursor-pointer"
                       >
                         <div
                           className="h-24 w-full rounded-2xl overflow-hidden"
@@ -727,8 +758,6 @@ export function GameScreen() {
                             backgroundSize: 'contain',
                           }}
                         />
-
-
 
                         <div className="px-4 py-3 text-lg font-black">{stage.label}</div>
                       </button>

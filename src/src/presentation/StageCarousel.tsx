@@ -88,14 +88,12 @@ export function StageCarousel({
     // güvenli clamp (yanlışlıkla MAX_LEVEL düşük kalırsa bile aralık taşmasın)
     startLevel: clamp(s.startLevel, 1, safeMax),
     endLevel: clamp(s.endLevel, 1, safeMax),
-    rangeText: s.key === 'buz' ? 'Bölüm 1-50' : `Bölüm ${s.startLevel}-${s.endLevel}`,
+    rangeText: `Bölüm 1-${s.endLevel - s.startLevel + 1}`,
   }));
 
-  // Stage başına 50 level çiziyoruz → height 50 üzerinden.
   const topPadding = 120;
   const stepY = 90;
   const stepX = 70;
-  const totalHeight = topPadding + LEVELS_PER_STAGE * stepY + 200;
 
   return (
     <div className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden">
@@ -128,10 +126,10 @@ export function StageCarousel({
             { length: stage.endLevel - stage.startLevel + 1 },
             (_, i) => {
               const actualLevel = stage.startLevel + i;
-              const displayLevel = stage.key === 'buz' ? i + 1 : actualLevel;
-              return { actualLevel, displayLevel };
+              return { actualLevel, displayLevel: i + 1 };
             }
           );
+          const totalHeight = topPadding + levels.length * stepY + 200;
 
           return (
             <div key={stage.key} className="snap-center shrink-0 w-[92%]">

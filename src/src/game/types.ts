@@ -80,3 +80,5 @@ export type GameAction =
   | { type: 'RESTART' }
   | { type: 'NEXT_LEVEL' }
   | { type: 'LOAD_LEVEL'; level: number; seed?: number };
+
+  export type StageTheme = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan';
