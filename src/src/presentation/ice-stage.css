@@ -61,29 +61,27 @@
   pointer-events: none;
 }
 
-.ice-stage__content {
+.ice-stage__frame-wrap {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  padding: 24px;
+  width: min(90vw, 900px);
+  max-height: 80vh;
 }
 
-.ice-stage__board {
-  width: min(44vw, 320px);
-  aspect-ratio: 1;
-  background-image: url("/stages/ice-maze.png");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
+.ice-stage__maze-slot {
+  position: absolute;
+  left: var(--maze-left, 50%);
+  top: var(--maze-top, 50%);
+  width: var(--maze-width, 40%);
+  height: var(--maze-height, 40%);
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
 }
 
 .ice-stage__maze {
-  transform: scale(0.9);
   transform-origin: center;
 }

@@ -49,10 +49,10 @@ export const MazeGrid = memo(function MazeGrid({
       path: 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30',
     },
     buz: {
-      grid: 'rounded-3xl bg-transparent border-transparent shadow-none',
-      wall: 'bg-transparent border-transparent',
-      wallShadow: 'none',
-      path: 'bg-transparent border-transparent',
+      grid: 'rounded-3xl bg-gradient-to-b from-sky-100/30 via-cyan-200/25 to-sky-300/30 border-cyan-200/60 shadow-cyan-500/30',
+      wall: 'bg-gradient-to-br from-cyan-200/90 via-sky-300/85 to-blue-500/90 border border-white/50',
+      wallShadow: 'inset 0 2px 8px rgba(255,255,255,0.6), inset 0 -3px 8px rgba(0,0,0,0.3)',
+      path: 'bg-sky-900/15 border border-white/10 backdrop-blur-[1px]',
     },
     toprak: {
       grid: 'rounded-2xl bg-gradient-to-br from-emerald-900/80 to-green-900/80 border-emerald-500/30',
@@ -382,7 +382,6 @@ const StaticGrid = memo(function StaticGrid({ grid, cellSizeClass, wallClass, wa
     </>
   );
 });
-
 
 
 

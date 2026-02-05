@@ -23,7 +23,6 @@ import { gameReducer, createLevel } from '../game/reducer';
 import { getGridForRender, canUndo, getProgress } from '../game/selectors';
 import { type Direction, MAX_LEVEL } from '../game/types';
 import { MazeGrid } from './MazeGrid';
-import { IceMaze } from './IceMaze';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'stages' | 'game';
@@ -332,39 +331,32 @@ export function GameScreen() {
 
   return (
     <div
-      className={[
-        'min-h-dvh w-full flex flex-col overflow-hidden select-none relative isolate z-0',
-        currentStage === 'buz'
-          ? 'bg-black'
-          : 'bg-gradient-to-b from-indigo-950 via-purple-950 to-indigo-900',
-      ].join(' ')}
+      className="min-h-dvh w-full flex flex-col bg-gradient-to-b from-indigo-950 via-purple-950 to-indigo-900 overflow-hidden select-none relative isolate z-0"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Animated background stars */}
-      {currentStage !== 'buz' && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-white rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                opacity: [0.2, 1, 0.2],
-                scale: [1, 1.5, 1],
-              }}
-              transition={{
-                duration: 2 + Math.random() * 2,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
-            />
-          ))}
-        </div>
-      )}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              opacity: [0.2, 1, 0.2],
+              scale: [1, 1.5, 1],
+            }}
+            transition={{
+              duration: 2 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+            }}
+          />
+        ))}
+      </div>
 
       {/* AUTH */}
       {screen === 'auth' ? (
@@ -403,8 +395,7 @@ export function GameScreen() {
       ) : screen === 'game' ? (
         <>
           {/* Header */}
-          {currentStage !== 'buz' && (
-            <div className="px-4 py-4 relative z-10">
+          <div className="px-4 py-4 relative z-10">
               <div className="relative z-10 max-w-md mx-auto space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <motion.div
@@ -460,26 +451,13 @@ export function GameScreen() {
                 </div>
               </div>
             </div>
-          )}
 
-          {currentStage === 'buz' ? (
-            <div className="flex-1 w-full relative z-10">
-              <IceMaze
-                grid={grid}
-                playerPos={state.playerPos}
-                exitPos={state.exitPos}
-                coins={state.coins}
-                doors={state.doors}
-                collectedCoins={state.collectedCoins}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              >
+          <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
                 <MazeGrid
                   grid={grid}
                   playerPos={state.playerPos}
@@ -487,11 +465,10 @@ export function GameScreen() {
                   coins={state.coins}
                   doors={state.doors}
                   collectedCoins={state.collectedCoins}
-                  theme={currentStage}
+                  theme={currentStage === 'buz' ? 'gezegen' : currentStage}
                 />
-              </motion.div>
-            </div>
-          )}
+            </motion.div>
+          </div>
 
           <ResultDialog
             status={state.status}
