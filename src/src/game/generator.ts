@@ -5,6 +5,7 @@
  */
 
 import type { MazeGrid, Position, LevelParams, Coin, Door, CoinColor } from './types';
+import { getStageTheme } from './stage';
 import { SeededRandom } from './utils/seed';
 
 interface Cell {
@@ -398,7 +399,8 @@ export function getLevelConfig(level: number): LevelParams {
   const special = getSpecialByLevel(level);
 
   const cappedSize = level <= 7 ? growthSize : Math.min(growthSize, 6);
-  const gridSize = special?.gridSize ?? cappedSize;
+  const stage = getStageTheme(level);
+  const gridSize = stage === 'buz' ? 6 : (special?.gridSize ?? cappedSize);
 
   const complexity = Math.min(0.35 + level * 0.06, 0.9);
 
