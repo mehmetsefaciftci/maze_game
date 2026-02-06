@@ -6,10 +6,11 @@
 import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
 import type { CellType, Coin, Door, CoinColor } from '../game/types';
+import type { ThemeKey } from '../themes';
 import type { Position } from '../game/types';
 import { User, Flag, Lock } from 'lucide-react';
 
-type StageTheme = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan' | 'ice' | 'default';
+type StageTheme = ThemeKey | 'ice' | 'default';
 
 interface MazeGridProps {
   grid: CellType[][];
@@ -34,13 +35,13 @@ export const MazeGrid = memo(function MazeGrid({
   const width = grid[0]?.length ?? 0;
 
   // Cell size + gap
-  const cellPx = theme === 'buz' ? 16 : 24;
+  const cellPx = 24;
   const gapPx = 2;
-  const paddingPx = theme === 'buz' ? 10 : 12;
+  const paddingPx = 12;
 
   const cellStep = cellPx + gapPx;
-  const cellSizeClass = theme === 'buz' ? 'w-4 h-4' : 'w-6 h-6';
-  const gapClass = theme === 'buz' ? 'gap-[2px]' : 'gap-0.5';
+  const cellSizeClass = 'w-6 h-6';
+  const gapClass = 'gap-0.5';
 
   const themeTokens = {
     gezegen: {
@@ -62,10 +63,10 @@ export const MazeGrid = memo(function MazeGrid({
       path: 'bg-gradient-to-br from-indigo-950/50 to-purple-950/50 border border-purple-800/30',
     },
     buz: {
-      grid: 'rounded-3xl bg-gradient-to-b from-sky-100/30 via-cyan-200/25 to-sky-300/30 border-cyan-200/60 shadow-cyan-500/30',
-      wall: 'bg-gradient-to-br from-cyan-200/90 via-sky-300/85 to-blue-500/90 border border-white/50',
-      wallShadow: 'inset 0 2px 8px rgba(255,255,255,0.6), inset 0 -3px 8px rgba(0,0,0,0.3)',
-      path: 'bg-sky-900/15 border border-white/10 backdrop-blur-[1px]',
+      grid: 'rounded-3xl bg-gradient-to-b from-sky-100/35 via-cyan-100/30 to-sky-200/35 border-cyan-100/60 shadow-cyan-400/25',
+      wall: 'bg-gradient-to-br from-white/95 via-sky-100/90 to-cyan-200/90 border border-white/70',
+      wallShadow: 'inset 0 2px 10px rgba(255,255,255,0.85), inset 0 -3px 10px rgba(120,160,200,0.35)',
+      path: 'bg-sky-900/10 border border-white/20 backdrop-blur-[1px]',
     },
     toprak: {
       grid: 'rounded-2xl bg-gradient-to-br from-emerald-900/80 to-green-900/80 border-emerald-500/30',
@@ -87,6 +88,7 @@ export const MazeGrid = memo(function MazeGrid({
     },
   } as const;
 
+  const themeKey: ThemeKey = theme === 'ice' || theme === 'default' ? 'gezegen' : theme;
   const activeTheme = themeTokens[theme];
   const wallClass = activeTheme.wall;
   const pathClass = activeTheme.path;
@@ -133,6 +135,8 @@ export const MazeGrid = memo(function MazeGrid({
           wallClass={wallClass}
           wallShadow={wallShadow}
           pathClass={pathClass}
+          themeKey={themeKey}
+          cellPx={cellPx}
         />
 
         {/* Coins */}
@@ -160,8 +164,8 @@ export const MazeGrid = memo(function MazeGrid({
               transition={{ duration: 0.4, ease: 'easeOut' }}
             >
               <motion.div
-                className={`w-3 h-3 bg-gradient-to-br ${colors.bg} rounded-full border ${colors.border}`}
-                style={{ boxShadow: `0 0 10px ${colors.shadow}` }}
+                className={`bg-gradient-to-br ${colors.bg} rounded-full border ${colors.border}`}
+                style={{ width: cellPx * 0.6, height: cellPx * 0.6, boxShadow: `0 0 10px ${colors.shadow}` }}
                 animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
               />
@@ -194,8 +198,10 @@ export const MazeGrid = memo(function MazeGrid({
               }}
             >
               <motion.div
-                className={`w-4 h-4 bg-gradient-to-br ${colors.bg} rounded flex items-center justify-center border-2 ${colors.border}`}
+                className={`bg-gradient-to-br ${colors.bg} rounded flex items-center justify-center border-2 ${colors.border}`}
                 style={{
+                  width: cellPx * 0.7,
+                  height: cellPx * 0.7,
                   boxShadow: isUnlocked ? 'none' : `0 0 15px ${colors.shadow}`,
                 }}
                 animate={
@@ -209,7 +215,9 @@ export const MazeGrid = memo(function MazeGrid({
                     : { duration: 1.5, repeat: Infinity, repeatType: 'reverse' }
                 }
               >
-                {!isUnlocked && <Lock className="w-2 h-2 text-white" strokeWidth={3} />}
+                {!isUnlocked && (
+                  <Lock className="text-white" strokeWidth={3} style={{ width: cellPx * 0.35, height: cellPx * 0.35 }} />
+                )}
               </motion.div>
             </motion.div>
           );
@@ -232,12 +240,12 @@ export const MazeGrid = memo(function MazeGrid({
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         >
           <motion.div
-            className="w-4 h-4 bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-green-200"
-            style={{ boxShadow: '0 0 15px rgba(52, 211, 153, 0.8)' }}
+            className="bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-green-200"
+            style={{ width: cellPx * 0.7, height: cellPx * 0.7, boxShadow: '0 0 15px rgba(52, 211, 153, 0.8)' }}
             animate={{ scale: [1, 1.15, 1] }}
             transition={{ duration: 1.5, repeat: Infinity, repeatType: 'reverse' }}
           >
-            <Flag className="w-2 h-2 text-white" strokeWidth={3} fill="white" />
+            <Flag className="text-white" strokeWidth={3} fill="white" style={{ width: cellPx * 0.35, height: cellPx * 0.35 }} />
           </motion.div>
         </motion.div>
 
@@ -265,12 +273,12 @@ export const MazeGrid = memo(function MazeGrid({
             key={`glow-${playerPos.x}-${playerPos.y}`}
           />
           <motion.div
-            className="w-4 h-4 bg-gradient-to-br from-blue-400 via-cyan-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-cyan-200 relative z-10"
-            style={{ boxShadow: '0 0 20px rgba(34, 211, 238, 0.9)' }}
+            className="bg-gradient-to-br from-blue-400 via-cyan-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-cyan-200 relative z-10"
+            style={{ width: cellPx * 0.7, height: cellPx * 0.7, boxShadow: '0 0 20px rgba(34, 211, 238, 0.9)' }}
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
           >
-            <User className="w-2 h-2 text-white" strokeWidth={3} />
+            <User className="text-white" strokeWidth={3} style={{ width: cellPx * 0.35, height: cellPx * 0.35 }} />
           </motion.div>
         </motion.div>
       </div>
@@ -285,6 +293,8 @@ interface MazeCellProps {
   wallClass: string;
   wallShadow: string;
   pathClass: string;
+  themeKey: ThemeKey;
+  cellPx: number;
 }
 
 const MazeCell = memo(function MazeCell({
@@ -294,20 +304,31 @@ const MazeCell = memo(function MazeCell({
   wallClass,
   wallShadow,
   pathClass,
+  themeKey,
+  cellPx,
 }: MazeCellProps) {
-  const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150`;
+  const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150 relative overflow-hidden`;
+  const sizeStyle = cellSizeClass ? undefined : { width: cellPx, height: cellPx };
+  const isWall = type === 'wall';
+  const cellFx = getCellFx(themeKey, isWall ? 'wall' : 'path');
 
-  if (type === 'wall') {
+  if (isWall) {
     return (
       <div
         className={`${baseClass} ${wallClass}`}
-        style={{ boxShadow: wallShadow }}
+        style={{ boxShadow: wallShadow, ...sizeStyle }}
         onClick={onClick}
-      />
+      >
+        {cellFx}
+      </div>
     );
   }
 
-  return <div className={`${baseClass} ${pathClass}`} onClick={onClick} />;
+  return (
+    <div className={`${baseClass} ${pathClass}`} style={sizeStyle} onClick={onClick}>
+      {cellFx}
+    </div>
+  );
 });
 
 interface StaticGridProps {
@@ -316,6 +337,8 @@ interface StaticGridProps {
   wallClass: string;
   wallShadow: string;
   pathClass: string;
+  themeKey: ThemeKey;
+  cellPx: number;
 }
 
 const StaticGrid = memo(function StaticGrid({
@@ -324,6 +347,8 @@ const StaticGrid = memo(function StaticGrid({
   wallClass,
   wallShadow,
   pathClass,
+  themeKey,
+  cellPx,
 }: StaticGridProps) {
   return (
     <>
@@ -338,6 +363,8 @@ const StaticGrid = memo(function StaticGrid({
               wallClass={wallClass}
               wallShadow={wallShadow}
               pathClass={pathClass}
+              themeKey={themeKey}
+              cellPx={cellPx}
               // prod'da istersen kaldırırız
               onClick={() => console.log('cell', { x, y })}
             />
@@ -347,3 +374,118 @@ const StaticGrid = memo(function StaticGrid({
     </>
   );
 });
+
+function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
+  switch (themeKey) {
+    case 'gezegen': {
+      if (kind === 'wall') {
+        return (
+          <span
+            className="absolute inset-0 opacity-40"
+            style={{
+              backgroundImage:
+                'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 45%, rgba(255,255,255,0.12) 100%)',
+            }}
+          />
+        );
+      }
+      return (
+        <span
+          className="absolute inset-0 opacity-50"
+          style={{
+            backgroundImage:
+              'radial-gradient(1px 1px at 30% 35%, rgba(255,255,255,0.35) 0, transparent 70%), radial-gradient(1px 1px at 70% 65%, rgba(255,255,255,0.2) 0, transparent 70%)',
+          }}
+        />
+      );
+    }
+    case 'buz': {
+      if (kind === 'wall') {
+        return (
+          <span
+            className="absolute inset-0 opacity-50"
+            style={{
+              backgroundImage:
+                'linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.35) 50%, transparent 80%)',
+            }}
+          />
+        );
+      }
+      return (
+        <span
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage:
+              'radial-gradient(120% 120% at 50% 50%, rgba(255,255,255,0.2) 0, transparent 55%)',
+          }}
+        />
+      );
+    }
+    case 'toprak': {
+      if (kind === 'wall') {
+        return (
+          <span
+            className="absolute inset-0 opacity-35"
+            style={{
+              backgroundImage:
+                'radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.15) 0, transparent 70%), radial-gradient(2px 2px at 75% 60%, rgba(0,0,0,0.2) 0, transparent 70%)',
+            }}
+          />
+        );
+      }
+      return (
+        <span
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage:
+              'linear-gradient(135deg, rgba(0,0,0,0.15) 0%, transparent 50%, rgba(255,255,255,0.08) 100%)',
+          }}
+        />
+      );
+    }
+    case 'kum': {
+      if (kind === 'wall') {
+        return (
+          <span
+            className="absolute inset-0 opacity-45"
+            style={{
+              backgroundImage:
+                'linear-gradient(90deg, rgba(255,255,255,0.18) 0%, transparent 45%, rgba(0,0,0,0.12) 100%)',
+            }}
+          />
+        );
+      }
+      return (
+        <span
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage:
+              'radial-gradient(10px 6px at 50% 40%, rgba(255,255,255,0.08) 0, transparent 70%), radial-gradient(12px 8px at 60% 70%, rgba(0,0,0,0.1) 0, transparent 70%)',
+          }}
+        />
+      );
+    }
+    case 'volkan': {
+      if (kind === 'wall') {
+        return (
+          <span
+            className="absolute inset-0 opacity-50"
+            style={{
+              backgroundImage:
+                'linear-gradient(160deg, rgba(255,120,0,0.2) 0%, transparent 55%, rgba(255,0,0,0.18) 100%)',
+            }}
+          />
+        );
+      }
+      return (
+        <span
+          className="absolute inset-0 opacity-45"
+          style={{
+            backgroundImage:
+              'radial-gradient(6px 6px at 25% 35%, rgba(255,140,0,0.35) 0, transparent 70%), radial-gradient(8px 8px at 70% 65%, rgba(255,60,0,0.28) 0, transparent 70%)',
+          }}
+        />
+      );
+    }
+  }
+}

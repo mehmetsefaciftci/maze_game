@@ -22,11 +22,14 @@ import { Coins } from 'lucide-react';
 import { gameReducer, createLevel } from '../game/reducer';
 import { getGridForRender, canUndo, getProgress } from '../game/selectors';
 import { type Direction, MAX_LEVEL } from '../game/types';
+import { THEMES, THEME_KEYS, getThemeForLevel, type ThemeKey } from '../themes';
+import { useTheme } from '../themes/ThemeProvider';
 import { MazeGrid } from './MazeGrid';
+import { BuzStage } from './BuzStage';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'stages' | 'game';
-type StageKey = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan';
+type StageKey = ThemeKey;
 type UserProgress = {
   completedLevels: number[];
   currentLevel: number;
@@ -38,23 +41,16 @@ type AuthUser = {
 
 const AUTH_USER_KEY = 'maze_auth_user';
 const PROGRESS_PREFIX = 'maze_progress_user_';
-const LEVELS_PER_STAGE = 50;
+const MAIN_MENU_THEME_KEY: ThemeKey = 'gezegen';
 
 const STAGES: { key: StageKey; label: string; startLevel: number; endLevel: number }[] = [
-  { key: 'gezegen', label: 'Gezegen', startLevel: 1, endLevel: 50 },
-  { key: 'buz', label: 'Buz', startLevel: 51, endLevel: 100 },
-  { key: 'toprak', label: 'Toprak', startLevel: 101, endLevel: 150 },
-  { key: 'kum', label: 'Kum', startLevel: 151, endLevel: 200 },
-  { key: 'volkan', label: 'Volkan', startLevel: 201, endLevel: 250 },
+  ...THEME_KEYS.map((key) => ({
+    key,
+    label: THEMES[key].name,
+    startLevel: THEMES[key].levelRange.start,
+    endLevel: THEMES[key].levelRange.end,
+  })),
 ];
-
-function getStageForLevel(level: number): StageKey {
-  if (level <= 50) return 'gezegen';
-  if (level <= 100) return 'buz';
-  if (level <= 150) return 'toprak';
-  if (level <= 200) return 'kum';
-  return 'volkan';
-}
 
 function loadCurrentUser(): AuthUser | null {
   const raw = window.localStorage.getItem(AUTH_USER_KEY);
@@ -110,6 +106,7 @@ function getHighestCompleted(completedLevels: number[]) {
 }
 
 export function GameScreen() {
+  const { setTheme, themeKey } = useTheme();
   const [state, dispatch] = useReducer(gameReducer, null, () => createLevel(1));
   const [screen, setScreen] = useState<ScreenState>('auth');
   const [stagePopupOpen, setStagePopupOpen] = useState(false);
@@ -129,7 +126,9 @@ export function GameScreen() {
   const progress = useMemo(() => getProgress(state), [state]);
   const isGameActive = screen === 'game' && state.status === 'playing' && !paused;
   const isFinalLevel = state.level >= MAX_LEVEL;
-  const currentStage = useMemo(() => getStageForLevel(state.level), [state.level]);
+  const currentStage = useMemo(() => getThemeForLevel(state.level), [state.level]);
+  const isIceStage = currentStage === 'buz';
+  const activeThemeKey = screen === 'game' ? currentStage : MAIN_MENU_THEME_KEY;
   const canUseDom = typeof document !== 'undefined';
   const mazeSize = useMemo(() => {
     const gridWidth = grid[0]?.length ?? 0;
@@ -166,6 +165,10 @@ export function GameScreen() {
 
     return () => observer.disconnect();
   }, [mazeSize]);
+
+  useEffect(() => {
+    if (themeKey !== activeThemeKey) setTheme(activeThemeKey);
+  }, [activeThemeKey, setTheme, themeKey]);
 
   // Boot: load logged user (if exists)
   useEffect(() => {
@@ -365,35 +368,52 @@ export function GameScreen() {
     [selectedStage]
   );
   const selectedStageRangeText = `Bölüm 1-${selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1}`;
+  const theme = THEMES[activeThemeKey];
 
   return (
     <div
-      className="min-h-dvh w-full flex flex-col bg-gradient-to-b from-indigo-950 via-purple-950 to-indigo-900 overflow-hidden select-none relative isolate z-0"
+      className={[
+        'min-h-dvh w-full flex flex-col overflow-hidden select-none relative isolate z-0',
+        theme.ui.rootBgClass,
+      ].join(' ')}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Animated background stars */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-white rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              opacity: [0.2, 1, 0.2],
-              scale: [1, 1.5, 1],
-            }}
-            transition={{
-              duration: 2 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
+      {!(screen === 'game' && isIceStage) && (
+        <>
+          <div
+            className={[
+              'absolute inset-0 pointer-events-none',
+              'bg-gradient-to-b',
+              theme.ui.hazeClass,
+            ].join(' ')}
           />
-        ))}
-      </div>
+          {theme.ui.starsEnabled && (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {[...Array(20)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-white rounded-full"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    opacity: [0.2, 1, 0.2],
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 2 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* AUTH */}
       {screen === 'auth' ? (
@@ -431,85 +451,97 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
-          <div className="px-4 py-4 relative z-10">
-            <div className="relative z-10 max-w-md mx-auto space-y-3">
-              <div className="flex items-center justify-between gap-3">
+          {isIceStage ? (
+            <BuzStage
+              gameState={state}
+              onPause={handlePauseToggle}
+              onMenuReturn={handleMenuReturn}
+              mazeScale={mazeScale}
+              mazeSlotRef={mazeSlotRef}
+            />
+          ) : (
+            <>
+              <div className="px-4 py-4 relative z-10">
+                <div className="relative z-10 max-w-md mx-auto space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
+                      style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
+                    >
+                      <div className="text-xs font-bold opacity-80">SEVİYE</div>
+                      <div className="text-2xl font-black tabular-nums">{state.level}</div>
+                    </motion.div>
+
+                    {state.coins.length > 0 && (
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
+                        style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
+                      >
+                        <Coins className="w-5 h-5" strokeWidth={2.5} />
+                        <div className="text-xl font-black tabular-nums">
+                          {state.collectedCoins.size}/{state.coins.length}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    <motion.div
+                      key={state.movesLeft}
+                      initial={{ scale: 1.3, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
+                      style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
+                    >
+                      <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
+                      <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
+                    </motion.div>
+
+                    <button
+                      onClick={handlePauseToggle}
+                      className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                    >
+                      Duraklat
+                    </button>
+                  </div>
+
+                  <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-0 w-full p-4 relative z-10 flex items-center justify-center">
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                  style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
-                >
-                  <div className="text-xs font-bold opacity-80">SEVİYE</div>
-                  <div className="text-2xl font-black tabular-nums">{state.level}</div>
-                </motion.div>
-
-                {state.coins.length > 0 && (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
-                    style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
-                  >
-                    <Coins className="w-5 h-5" strokeWidth={2.5} />
-                    <div className="text-xl font-black tabular-nums">
-                      {state.collectedCoins.size}/{state.coins.length}
-                    </div>
-                  </motion.div>
-                )}
-
-                <motion.div
-                  key={state.movesLeft}
-                  initial={{ scale: 1.3, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                  style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
-                >
-                  <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
-                  <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
-                </motion.div>
-
-                <button
-                  onClick={handlePauseToggle}
-                  className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
-                >
-                  Duraklat
-                </button>
-              </div>
-
-              <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.3 }}
-                />
+                  className="w-full h-full flex items-center justify-center"
+                >
+                  <div ref={mazeSlotRef} className="w-full h-full flex items-center justify-center">
+                    <div style={{ transform: `scale(${mazeScale})`, transformOrigin: 'center' }}>
+                      <MazeGrid
+                        grid={grid}
+                        playerPos={state.playerPos}
+                        exitPos={state.exitPos}
+                        coins={state.coins}
+                        doors={state.doors}
+                        collectedCoins={state.collectedCoins}
+                        theme={currentStage}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
               </div>
-            </div>
-          </div>
-
-          <div className="flex-1 min-h-0 w-full p-4 relative z-10 flex items-center justify-center">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center"
-            >
-              <div ref={mazeSlotRef} className="w-full h-full flex items-center justify-center">
-                <div style={{ transform: `scale(${mazeScale})`, transformOrigin: 'center' }}>
-                  <MazeGrid
-                    grid={grid}
-                    playerPos={state.playerPos}
-                    exitPos={state.exitPos}
-                    coins={state.coins}
-                    doors={state.doors}
-                    collectedCoins={state.collectedCoins}
-                    theme={currentStage === 'buz' ? 'gezegen' : currentStage}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          </div>
+            </>
+          )}
 
           <ResultDialog
             status={state.status}
@@ -625,7 +657,8 @@ export function GameScreen() {
                       const topPadding = 120;
                       const stepY = 90;
                       const stepX = 70;
-                      const totalHeight = topPadding + LEVELS_PER_STAGE * stepY + 200;
+                      const totalLevels = selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1;
+                      const totalHeight = topPadding + totalLevels * stepY + 200;
                       const levels = Array.from(
                         { length: selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1 },
                         (_, i) => {

@@ -1,7 +1,8 @@
 import { motion } from 'motion/react';
 import { MAX_LEVEL } from '../game/types';
+import { THEMES, THEME_KEYS, type ThemeKey } from '../themes';
 
-type StageKey = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan';
+type StageKey = ThemeKey;
 
 type Stage = {
   key: StageKey;
@@ -23,9 +24,6 @@ interface StageCarouselProps {
   onLogout?: () => void;
 }
 
-const STAGE_COUNT = 5;
-const LEVELS_PER_STAGE = 50;
-
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -39,57 +37,26 @@ export function StageCarousel({
   onBack,
   onLogout,
 }: StageCarouselProps) {
+  const maxFromThemes = Math.max(...THEME_KEYS.map((key) => THEMES[key].levelRange.end));
   // MAX_LEVEL beklenen: 250. Yine de güvenli olsun diye clamp.
-  const safeMax = Math.max(MAX_LEVEL, STAGE_COUNT * LEVELS_PER_STAGE);
+  const safeMax = Math.max(MAX_LEVEL, maxFromThemes);
 
-  const stages: Stage[] = ([
-    {
-      key: 'gezegen',
-      title: 'Gezegen',
-      subtitle: 'Aşama 1',
-      gradient: 'bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900',
-      startLevel: 1,
-      endLevel: 50,
-    },
-    {
-      key: 'buz',
-      title: 'Buz',
-      subtitle: 'Aşama 2',
-      gradient: 'bg-gradient-to-br from-sky-900 via-cyan-800 to-blue-900',
-      startLevel: 51,
-      endLevel: 100,
-    },
-    {
-      key: 'toprak',
-      title: 'Toprak',
-      subtitle: 'Aşama 3',
-      gradient: 'bg-gradient-to-br from-emerald-900 via-green-800 to-lime-900',
-      startLevel: 101,
-      endLevel: 150,
-    },
-    {
-      key: 'kum',
-      title: 'Kum',
-      subtitle: 'Aşama 4',
-      gradient: 'bg-gradient-to-br from-amber-900 via-orange-800 to-yellow-900',
-      startLevel: 151,
-      endLevel: 200,
-    },
-    {
-      key: 'volkan',
-      title: 'Volkan',
-      subtitle: 'Aşama 5',
-      gradient: 'bg-gradient-to-br from-red-900 via-rose-800 to-orange-900',
-      startLevel: 201,
-      endLevel: 250,
-    },
-  ] as Omit<Stage, 'rangeText'>[]).map((s) => ({
-    ...s,
-    // güvenli clamp (yanlışlıkla MAX_LEVEL düşük kalırsa bile aralık taşmasın)
-    startLevel: clamp(s.startLevel, 1, safeMax),
-    endLevel: clamp(s.endLevel, 1, safeMax),
-    rangeText: `Bölüm 1-${s.endLevel - s.startLevel + 1}`,
-  }));
+  const stages: Stage[] = THEME_KEYS.map((key, idx) => {
+    const theme = THEMES[key];
+    const rawStart = theme.levelRange.start;
+    const rawEnd = theme.levelRange.end;
+    const startLevel = clamp(rawStart, 1, safeMax);
+    const endLevel = clamp(rawEnd, 1, safeMax);
+    return {
+      key,
+      title: theme.name,
+      subtitle: `Aşama ${idx + 1}`,
+      gradient: theme.ui.rootBgClass,
+      startLevel,
+      endLevel,
+      rangeText: `Bölüm 1-${endLevel - startLevel + 1}`,
+    };
+  });
 
   const topPadding = 120;
   const stepY = 90;

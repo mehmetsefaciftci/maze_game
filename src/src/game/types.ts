@@ -3,6 +3,8 @@
  * Pure TypeScript types for maze game
  */
 
+import type { ThemeKey } from '../themes';
+
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
 export type CoinColor = 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange';
@@ -81,4 +83,4 @@ export type GameAction =
   | { type: 'NEXT_LEVEL' }
   | { type: 'LOAD_LEVEL'; level: number; seed?: number };
 
-  export type StageTheme = 'gezegen' | 'buz' | 'toprak' | 'kum' | 'volkan';
+export type StageTheme = ThemeKey;
