@@ -600,22 +600,24 @@ export function GameScreen() {
             transition={{ duration: 0.3 }}
             className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden"
           >
-            <div className="grid grid-cols-3 items-center">
-              <div className="text-white/80 text-xs font-bold justify-self-start">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-white/80 text-xs font-bold">
                 Kullanıcı: <span className="text-white">{user?.username}</span>
               </div>
-              <button
-                onClick={handleBackToMenu}
-                className="justify-self-center text-white/80 text-xs font-bold underline underline-offset-4"
-              >
-                Geri
-              </button>
-              <button
-                onClick={doLogout}
-                className="justify-self-end text-white/70 text-xs font-bold underline underline-offset-4"
-              >
-                Kullanıcıdan çıkış
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleBackToMenu}
+                  className="px-4 py-2 rounded-2xl bg-white/20 border border-white/40 text-white text-sm font-black shadow-[0_10px_22px_rgba(0,0,0,0.3)]"
+                >
+                  Geri
+                </button>
+                <button
+                  onClick={doLogout}
+                  className="px-4 py-2 rounded-2xl bg-rose-500/20 border border-rose-200/40 text-rose-50 text-sm font-black shadow-[0_10px_22px_rgba(0,0,0,0.3)]"
+                >
+                  Çıkış yap
+                </button>
+              </div>
             </div>
 
             <div className="text-center space-y-2 mt-3">

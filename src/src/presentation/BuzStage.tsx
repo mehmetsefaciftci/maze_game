@@ -217,8 +217,10 @@ export function BuzStage({ gameState, onPause, onMenuReturn, mazeScale, mazeSlot
 
               <button
                 onClick={onPause}
-                className="px-7 py-3 rounded-full text-base font-black text-white transition-all"
+                className="rounded-full text-base font-black text-white transition-all flex items-center justify-center"
                 style={{
+                  width: '90.29px',
+                  height: '41.6px',
                   background: 'linear-gradient(180deg, rgba(84, 72, 130, 0.95) 0%, rgba(60, 52, 98, 0.95) 100%)',
                   boxShadow:
                     '0 12px 26px rgba(22, 15, 60, 0.45), inset 0 1px 0 rgba(255,255,255,0.15)',
