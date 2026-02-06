@@ -31,6 +31,7 @@ type SpecialLevelConfig = {
   coins: Coin[];
   doors: Door[];
   gridSize?: number;
+  overrideCoinsDoors?: boolean;
 };
 
 type PathCacheEntry = {
@@ -158,6 +159,15 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     gridSize: 6,
     coins: [],
     doors: [],
+  },
+  {
+    level: 69,
+    seed: 1483,
+    build: buildLevel69Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+    overrideCoinsDoors: true,
   },
 ];
 
@@ -447,6 +457,10 @@ function generateCoinsAndDoors(
 ): { coins: Coin[]; doors: Door[] } {
   const coins: Coin[] = [];
   const doors: Door[] = [];
+  const specialOverride = getSpecialBySeed(params.seed);
+  if (specialOverride?.overrideCoinsDoors) {
+    return { coins: specialOverride.coins, doors: specialOverride.doors };
+  }
 
   const level = Math.floor((params.seed - 1000) / 7);
   const actualLevel =
@@ -1109,6 +1123,10 @@ function buildLevel20Grid(gridWidth: number, gridHeight: number): Grid {
 }
 
 function buildLevel51Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel69Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 

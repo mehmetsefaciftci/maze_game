@@ -26,6 +26,7 @@ import { THEMES, THEME_KEYS, getThemeForLevel, type ThemeKey } from '../themes';
 import { useTheme } from '../themes/ThemeProvider';
 import { MazeGrid } from './MazeGrid';
 import { BuzStage } from './BuzStage';
+import { ToprakStage } from './ToprakStage';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'stages' | 'game';
@@ -128,6 +129,7 @@ export function GameScreen() {
   const isFinalLevel = state.level >= MAX_LEVEL;
   const currentStage = useMemo(() => getThemeForLevel(state.level), [state.level]);
   const isIceStage = currentStage === 'buz';
+  const isToprakStage = currentStage === 'toprak';
   const activeThemeKey = screen === 'game' ? currentStage : MAIN_MENU_THEME_KEY;
   const canUseDom = typeof document !== 'undefined';
   const mazeSize = useMemo(() => {
@@ -379,7 +381,7 @@ export function GameScreen() {
       onTouchEnd={handleTouchEnd}
     >
       {/* Animated background stars */}
-      {!(screen === 'game' && isIceStage) && (
+      {!(screen === 'game' && (isIceStage || isToprakStage)) && (
         <>
           <div
             className={[
@@ -455,6 +457,13 @@ export function GameScreen() {
               gameState={state}
               onPause={handlePauseToggle}
               onMenuReturn={handleMenuReturn}
+              mazeScale={mazeScale}
+              mazeSlotRef={mazeSlotRef}
+            />
+          ) : isToprakStage ? (
+            <ToprakStage
+              gameState={state}
+              onPause={handlePauseToggle}
               mazeScale={mazeScale}
               mazeSlotRef={mazeSlotRef}
             />

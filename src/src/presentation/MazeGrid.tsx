@@ -69,10 +69,10 @@ export const MazeGrid = memo(function MazeGrid({
       path: 'bg-sky-900/26 border border-white/35 backdrop-blur-[1px]',
     },
     toprak: {
-      grid: 'rounded-2xl bg-gradient-to-br from-emerald-900/80 to-green-900/80 border-emerald-500/30',
-      wall: 'bg-gradient-to-br from-emerald-400 via-green-600 to-lime-700 border border-emerald-200/50',
-      wallShadow: 'inset 0 -2px 4px rgba(0,0,0,0.35), inset 0 2px 4px rgba(255,255,255,0.2)',
-      path: 'bg-green-950/40 border border-emerald-800/30',
+      grid: 'rounded-3xl bg-gradient-to-br from-[#3b2a1f]/75 via-[#2a1d16]/75 to-[#1f150f]/85 border-[#6b4a32]/35',
+      wall: 'bg-gradient-to-br from-[#b07a3c] via-[#8a5a2b] to-[#5a3a1f] border border-[#6e4a2b]/60',
+      wallShadow: 'inset 0 -2px 6px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.12)',
+      path: 'bg-gradient-to-br from-[#6b4a2b]/75 to-[#3f2a1a]/85 border border-[#5a3a1f]/45',
     },
     kum: {
       grid: 'rounded-2xl bg-gradient-to-br from-amber-900/70 to-orange-900/80 border-amber-500/30',
@@ -425,10 +425,10 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
       if (kind === 'wall') {
         return (
           <span
-            className="absolute inset-0 opacity-35"
+            className="absolute inset-0 opacity-55"
             style={{
               backgroundImage:
-                'radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.15) 0, transparent 70%), radial-gradient(2px 2px at 75% 60%, rgba(0,0,0,0.2) 0, transparent 70%)',
+                'radial-gradient(55% 55% at 50% 50%, rgba(18,10,6,0.9) 0%, rgba(18,10,6,0) 60%), radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.1) 0, transparent 70%)',
             }}
           />
         );
