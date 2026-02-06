@@ -135,10 +135,9 @@ export function GameScreen() {
     const gridHeight = grid.length;
     if (!gridWidth || !gridHeight) return null;
 
-    const isIceTheme = currentStage === 'buz';
-    const cellPx = isIceTheme ? 16 : 24;
+    const cellPx = 24;
     const gapPx = 2;
-    const paddingPx = isIceTheme ? 10 : 12;
+    const paddingPx = 12;
     const totalWidth = paddingPx * 2 + gridWidth * cellPx + (gridWidth - 1) * gapPx;
     const totalHeight = paddingPx * 2 + gridHeight * cellPx + (gridHeight - 1) * gapPx;
     const level8GridSize = 13;
