@@ -3,7 +3,7 @@
  * Renders the maze grid with optimized performance and smooth player animations
  */
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { motion } from 'motion/react';
 import type { CellType, Coin, Door, CoinColor } from '../game/types';
 import type { Position } from '../game/types';
@@ -17,7 +17,7 @@ interface MazeGridProps {
   exitPos: Position;
   coins: Coin[];
   doors: Door[];
-  collectedCoins: Set<string>;
+  collectedCoins: Set<string>; // stores "x,y" of collected coins
   theme?: StageTheme;
 }
 
@@ -37,6 +37,7 @@ export const MazeGrid = memo(function MazeGrid({
   const cellPx = theme === 'buz' ? 16 : 24;
   const gapPx = 2;
   const paddingPx = theme === 'buz' ? 10 : 12;
+
   const cellStep = cellPx + gapPx;
   const cellSizeClass = theme === 'buz' ? 'w-4 h-4' : 'w-6 h-6';
   const gapClass = theme === 'buz' ? 'gap-[2px]' : 'gap-0.5';
@@ -90,7 +91,17 @@ export const MazeGrid = memo(function MazeGrid({
   const wallClass = activeTheme.wall;
   const pathClass = activeTheme.path;
   const wallShadow = activeTheme.wallShadow;
-  
+
+  // ✅ collected coin colors (door unlock uses color, not a specific coin position)
+  const collectedColors = useMemo(() => {
+    const set = new Set<CoinColor>();
+    for (const coin of coins) {
+      const key = `${coin.position.x},${coin.position.y}`;
+      if (collectedCoins.has(key)) set.add(coin.color);
+    }
+    return set;
+  }, [coins, collectedCoins]);
+
   // Color mapping
   const getColorClasses = (color: CoinColor) => {
     switch (color) {
@@ -107,12 +118,13 @@ export const MazeGrid = memo(function MazeGrid({
     <div className="relative inline-block">
       <div
         className={[
-          'relative inline-grid backdrop-blur-sm p-3 shadow-2xl border-2 z-0',
+          'relative inline-grid backdrop-blur-sm shadow-2xl border-2 z-0',
           gapClass,
           activeTheme.grid,
         ].join(' ')}
         style={{
           gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
+          padding: paddingPx, // ✅ paddingPx ile birebir hizala
         }}
       >
         <StaticGrid
@@ -122,16 +134,14 @@ export const MazeGrid = memo(function MazeGrid({
           wallShadow={wallShadow}
           pathClass={pathClass}
         />
-        
+
         {/* Coins */}
         {coins.map((coin) => {
           const coinKey = `${coin.position.x},${coin.position.y}`;
-          const isCollected = collectedCoins.has(coinKey);
-          
+          if (collectedCoins.has(coinKey)) return null;
+
           const colors = getColorClasses(coin.color);
-          
-          if (isCollected) return null; // Remove collected coins from DOM
-          
+
           return (
             <motion.div
               key={coinKey}
@@ -147,44 +157,25 @@ export const MazeGrid = memo(function MazeGrid({
                 x: coin.position.x * cellStep,
                 y: coin.position.y * cellStep,
               }}
-              exit={{
-                scale: [1, 1.5, 0],
-                opacity: [1, 1, 0],
-                rotate: [0, 180],
-              }}
-              transition={{
-                duration: 0.4,
-                ease: 'easeOut',
-              }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
             >
               <motion.div
                 className={`w-3 h-3 bg-gradient-to-br ${colors.bg} rounded-full border ${colors.border}`}
-                style={{
-                  boxShadow: `0 0 10px ${colors.shadow}`,
-                }}
-                animate={{
-                  scale: [1, 1.2, 1],
-                  rotate: [0, 180, 360],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'linear',
-                }}
+                style={{ boxShadow: `0 0 10px ${colors.shadow}` }}
+                animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
               />
             </motion.div>
           );
         })}
-        
+
         {/* Doors */}
         {doors.map((door) => {
-          const coinKey = coins.find(c => c.color === door.color);
-          const coinKeyStr = coinKey ? `${coinKey.position.x},${coinKey.position.y}` : '';
-          const isUnlocked = collectedCoins.has(coinKeyStr);
-          
+          const isUnlocked = collectedColors.has(door.color); // ✅ RENK bazlı unlock
+
           const colors = getColorClasses(door.color);
           const doorKey = `${door.position.x},${door.position.y}`;
-          
+
           return (
             <motion.div
               key={doorKey}
@@ -207,29 +198,24 @@ export const MazeGrid = memo(function MazeGrid({
                 style={{
                   boxShadow: isUnlocked ? 'none' : `0 0 15px ${colors.shadow}`,
                 }}
-                animate={isUnlocked ? {
-                  opacity: 0.3,
-                  scale: 1.3,
-                } : {
-                  opacity: 1,
-                  scale: [1, 1.1, 1],
-                }}
-                transition={isUnlocked ? {
-                  duration: 0.3,
-                  ease: 'easeOut',
-                } : {
-                  duration: 1.5,
-                  repeat: Infinity,
-                  repeatType: 'reverse',
-                }}
+                animate={
+                  isUnlocked
+                    ? { opacity: 0.3, scale: 1.3 }
+                    : { opacity: 1, scale: [1, 1.1, 1] }
+                }
+                transition={
+                  isUnlocked
+                    ? { duration: 0.3, ease: 'easeOut' }
+                    : { duration: 1.5, repeat: Infinity, repeatType: 'reverse' }
+                }
               >
                 {!isUnlocked && <Lock className="w-2 h-2 text-white" strokeWidth={3} />}
               </motion.div>
             </motion.div>
           );
         })}
-        
-        {/* Animated Exit */}
+
+        {/* Exit */}
         <motion.div
           className="absolute pointer-events-none flex items-center justify-center"
           style={{
@@ -243,31 +229,19 @@ export const MazeGrid = memo(function MazeGrid({
             x: exitPos.x * cellStep,
             y: exitPos.y * cellStep,
           }}
-          transition={{
-            type: 'spring',
-            stiffness: 500,
-            damping: 30,
-          }}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         >
           <motion.div
             className="w-4 h-4 bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-green-200"
-            style={{
-              boxShadow: '0 0 15px rgba(52, 211, 153, 0.8)',
-            }}
-            animate={{
-              scale: [1, 1.15, 1],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              repeatType: 'reverse',
-            }}
+            style={{ boxShadow: '0 0 15px rgba(52, 211, 153, 0.8)' }}
+            animate={{ scale: [1, 1.15, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity, repeatType: 'reverse' }}
           >
             <Flag className="w-2 h-2 text-white" strokeWidth={3} fill="white" />
           </motion.div>
         </motion.div>
-        
-        {/* Animated Player */}
+
+        {/* Player */}
         <motion.div
           className="absolute pointer-events-none flex items-center justify-center"
           style={{
@@ -282,40 +256,19 @@ export const MazeGrid = memo(function MazeGrid({
             x: playerPos.x * cellStep,
             y: playerPos.y * cellStep,
           }}
-          transition={{
-            type: 'spring',
-            stiffness: 800,
-            damping: 30,
-            mass: 0.3,
-          }}
+          transition={{ type: 'spring', stiffness: 800, damping: 30, mass: 0.3 }}
         >
-          {/* Glow effect during movement */}
           <motion.div
             className="absolute inset-0 bg-cyan-400 rounded-full blur-md"
-            animate={{
-              opacity: [0, 0.5, 0],
-              scale: [0.7, 1.4, 0.7],
-            }}
-            transition={{
-              duration: 0.3,
-              ease: 'easeOut',
-            }}
+            animate={{ opacity: [0, 0.5, 0], scale: [0.7, 1.4, 0.7] }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
             key={`glow-${playerPos.x}-${playerPos.y}`}
           />
-          
           <motion.div
             className="w-4 h-4 bg-gradient-to-br from-blue-400 via-cyan-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-cyan-200 relative z-10"
-            style={{
-              boxShadow: '0 0 20px rgba(34, 211, 238, 0.9)',
-            }}
-            animate={{
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 0.5,
-              repeat: Infinity,
-              repeatType: 'reverse',
-            }}
+            style={{ boxShadow: '0 0 20px rgba(34, 211, 238, 0.9)' }}
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
           >
             <User className="w-2 h-2 text-white" strokeWidth={3} />
           </motion.div>
@@ -334,28 +287,27 @@ interface MazeCellProps {
   pathClass: string;
 }
 
-const MazeCell = memo(function MazeCell({ type, onClick, cellSizeClass, wallClass, wallShadow, pathClass }: MazeCellProps) {
+const MazeCell = memo(function MazeCell({
+  type,
+  onClick,
+  cellSizeClass,
+  wallClass,
+  wallShadow,
+  pathClass,
+}: MazeCellProps) {
   const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150`;
-  
+
   if (type === 'wall') {
     return (
       <div
         className={`${baseClass} ${wallClass}`}
-        style={{
-          boxShadow: wallShadow,
-        }}
+        style={{ boxShadow: wallShadow }}
         onClick={onClick}
       />
     );
   }
-  
-  // path
-  return (
-    <div
-      className={`${baseClass} ${pathClass}`}
-      onClick={onClick}
-    />
-  );
+
+  return <div className={`${baseClass} ${pathClass}`} onClick={onClick} />;
 });
 
 interface StaticGridProps {
@@ -366,12 +318,17 @@ interface StaticGridProps {
   pathClass: string;
 }
 
-const StaticGrid = memo(function StaticGrid({ grid, cellSizeClass, wallClass, wallShadow, pathClass }: StaticGridProps) {
+const StaticGrid = memo(function StaticGrid({
+  grid,
+  cellSizeClass,
+  wallClass,
+  wallShadow,
+  pathClass,
+}: StaticGridProps) {
   return (
     <>
       {grid.map((row, y) =>
         row.map((cell, x) => {
-          // Don't render player and exit in the grid cells
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
           return (
             <MazeCell
@@ -381,10 +338,8 @@ const StaticGrid = memo(function StaticGrid({ grid, cellSizeClass, wallClass, wa
               wallClass={wallClass}
               wallShadow={wallShadow}
               pathClass={pathClass}
-              onClick={() => {
-                // Debug: print grid coordinates
-                console.log('cell', { x, y });
-              }}
+              // prod'da istersen kaldırırız
+              onClick={() => console.log('cell', { x, y })}
             />
           );
         })
@@ -392,4 +347,3 @@ const StaticGrid = memo(function StaticGrid({ grid, cellSizeClass, wallClass, wa
     </>
   );
 });
-

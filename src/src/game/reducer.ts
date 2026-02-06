@@ -45,16 +45,18 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     return state;
   }
 
-  // Slide until hitting a wall, boundary, or locked door
-  // Collect all coins encountered during the slide
   let currentPos = state.playerPos;
   let lastValidPos = currentPos;
+
+  // ✅ Copy Set so we never mutate state.collectedCoins reference
   let newCollectedCoins = new Set(state.collectedCoins);
+
+  // (Debug/analytics için dursun; şu an kullanılmıyor)
   const coinsCollectedDuringSlide: string[] = [];
-  
+
   while (true) {
     const nextPos = getNewPosition(currentPos, direction);
-    
+
     // Check boundaries
     if (!isValidPosition(nextPos, state.grid)) {
       break;
@@ -65,59 +67,57 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
       break;
     }
 
-    // Check locked door
+    // ✅ Check locked door (backward-compatible but more correct)
     const door = state.doors.find(d => d.position.x === nextPos.x && d.position.y === nextPos.y);
     if (door) {
-      const coinKey = getCoinKeyForDoor(state.coins, door.color);
-      if (coinKey && !newCollectedCoins.has(coinKey)) {
-        // Door is locked, stop here
-        break;
+      // Old behavior: door opened by a coin of same color
+      // Improved behavior: if multiple same-color coins exist, any collected one unlocks
+      const isUnlocked = hasCollectedColor(state.coins, newCollectedCoins, door.color);
+      if (!isUnlocked) {
+        break; // Door is locked, stop before it
       }
     }
 
     // Valid move, continue sliding
     lastValidPos = nextPos;
     currentPos = nextPos;
-    
-    // Check if we're collecting a coin at this position
+
+    // Collect coin if present at this position (your current rule: pass-through collects)
     const coin = state.coins.find(c => c.position.x === currentPos.x && c.position.y === currentPos.y);
     if (coin) {
       const coinKey = `${coin.position.x},${coin.position.y}`;
       if (!newCollectedCoins.has(coinKey)) {
-        // Collect coin during slide
         newCollectedCoins.add(coinKey);
         coinsCollectedDuringSlide.push(coinKey);
       }
     }
   }
 
-  // If player didn't move at all, return unchanged state
+  // If player didn't move at all, return unchanged state (no move spent)
   if (lastValidPos.x === state.playerPos.x && lastValidPos.y === state.playerPos.y) {
     return state;
   }
 
-  // Save current state to history
+  // ✅ Save current state to history (MUST clone Set)
   const newHistory = [
     ...state.history,
     {
       playerPos: state.playerPos,
       movesLeft: state.movesLeft,
-      collectedCoins: state.collectedCoins,
+      collectedCoins: new Set(state.collectedCoins),
     },
   ];
 
   const newMovesLeft = state.movesLeft - 1;
-  
-  // Check win condition: Must be at exit AND have collected all required coins
+
+  // Win condition: at exit AND all coins collected (your current rule stays)
   if (lastValidPos.x === state.exitPos.x && lastValidPos.y === state.exitPos.y) {
-    // Check if all required coins are collected
     const allCoinsCollected = state.coins.every(coin => {
       const coinKey = `${coin.position.x},${coin.position.y}`;
       return newCollectedCoins.has(coinKey);
     });
-    
+
     if (allCoinsCollected) {
-      // All coins collected, player wins!
       return {
         ...state,
         playerPos: lastValidPos,
@@ -127,10 +127,10 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
         history: newHistory,
       };
     }
-    // If not all coins collected, player can continue (stays at exit but game continues)
+    // If not all coins collected, game continues (your current behavior stays)
   }
 
-  // Check lose condition
+  // Lose condition (your current behavior stays)
   if (newMovesLeft <= 0) {
     return {
       ...state,
@@ -166,9 +166,10 @@ export function undo(state: MazeState): MazeState {
     ...state,
     playerPos: lastState.playerPos,
     movesLeft: lastState.movesLeft,
-    collectedCoins: lastState.collectedCoins,
+    // ✅ Ensure Set is not shared by reference
+    collectedCoins: new Set(lastState.collectedCoins),
     history: newHistory,
-    status: 'playing', // Reset status when undoing
+    status: 'playing',
   };
 }
 
@@ -186,19 +187,19 @@ export function gameReducer(state: MazeState, action: GameAction): MazeState {
   switch (action.type) {
     case 'MOVE':
       return applyMove(state, action.direction);
-    
+
     case 'UNDO':
       return undo(state);
-    
+
     case 'RESTART':
       return restart(state);
-    
+
     case 'NEXT_LEVEL':
       return createLevel(Math.min(state.level + 1, MAX_LEVEL));
-    
+
     case 'LOAD_LEVEL':
       return createLevel(Math.min(action.level, MAX_LEVEL), action.seed);
-    
+
     default:
       return state;
   }
@@ -223,7 +224,15 @@ function isValidPosition(pos: Position, grid: { width: number; height: number })
   return pos.x >= 0 && pos.x < grid.width && pos.y >= 0 && pos.y < grid.height;
 }
 
-function getCoinKeyForDoor(coins: { position: Position; color: string }[], doorColor: string): string | null {
-  const coin = coins.find(c => c.color === doorColor);
-  return coin ? `${coin.position.x},${coin.position.y}` : null;
+/**
+ * ✅ Door unlock rule (backward-compatible):
+ * - If there is only 1 coin of that color -> same as old behavior
+ * - If there are multiple coins of that color -> any collected one unlocks
+ */
+function hasCollectedColor(
+  coins: { position: Position; color: string }[],
+  collected: Set<string>,
+  doorColor: string
+): boolean {
+  return coins.some(c => c.color === doorColor && collected.has(`${c.position.x},${c.position.y}`));
 }

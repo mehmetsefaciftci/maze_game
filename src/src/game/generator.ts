@@ -223,12 +223,8 @@ export function generateMaze(params: LevelParams): {
       const neighbors = getUnvisitedNeighbors(current, cells, gridSize);
 
       if (neighbors.length > 0) {
-        // Pick random neighbor
         const next = neighbors[rng.nextInt(0, neighbors.length)];
-        
-        // Remove wall between current and next
         removeWall(current, next);
-        
         next.visited = true;
         stack.push(next);
       } else {
@@ -236,7 +232,7 @@ export function generateMaze(params: LevelParams): {
       }
     }
 
-    // Convert to CellType grid
+    // Convert to grid
     grid = Array(gridHeight)
       .fill(null)
       .map(() => Array(gridWidth).fill('wall'));
@@ -247,9 +243,9 @@ export function generateMaze(params: LevelParams): {
         const cell = cells[y][x];
         const gx = x * 2 + 1;
         const gy = y * 2 + 1;
-        
+
         grid[gy][gx] = 'path';
-        
+
         if (!cell.walls.right && x < gridSize - 1) {
           grid[gy][gx + 1] = 'path';
         }
@@ -259,20 +255,19 @@ export function generateMaze(params: LevelParams): {
       }
     }
 
-    // Remove some vertical walls in the middle area for better flow
-    // This creates more open passages in the central area
+    // Central flow tweak
     const midX = Math.floor(gridWidth / 2);
     for (let y = 3; y < gridHeight - 3; y += 2) {
-      if (grid[y][midX] === 'wall' && 
-          grid[y][midX - 1] === 'path' && 
-          grid[y][midX + 1] === 'path') {
-        // Only remove if it connects two path cells
+      if (
+        grid[y][midX] === 'wall' &&
+        grid[y][midX - 1] === 'path' &&
+        grid[y][midX + 1] === 'path'
+      ) {
         grid[y][midX] = 'path';
       }
     }
   }
 
-  // Set start and exit positions
   const startPos: Position = { x: 1, y: 1 };
   const exitPos: Position = { x: gridWidth - 2, y: gridHeight - 2 };
 
@@ -286,11 +281,12 @@ export function generateMaze(params: LevelParams): {
     }
   }
 
-  // Calculate solution length using BFS
+  // BFS solution length (same as your current behavior)
   const solutionLength = findShortestPath(grid, startPos, exitPos);
 
-  // Generate coins and doors based on level
+  // Coins/doors
   const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng, pathCacheKey);
+
   const usesSpecialCoins = Boolean(
     specialBySeed && (specialBySeed.coins.length > 0 || specialBySeed.doors.length > 0)
   );
@@ -316,10 +312,10 @@ function getUnvisitedNeighbors(cell: Cell, cells: Cell[][], gridSize: number): C
   const neighbors: Cell[] = [];
   const { x, y } = cell;
 
-  if (y > 0 && !cells[y - 1][x].visited) neighbors.push(cells[y - 1][x]); // top
-  if (x < gridSize - 1 && !cells[y][x + 1].visited) neighbors.push(cells[y][x + 1]); // right
-  if (y < gridSize - 1 && !cells[y + 1][x].visited) neighbors.push(cells[y + 1][x]); // bottom
-  if (x > 0 && !cells[y][x - 1].visited) neighbors.push(cells[y][x - 1]); // left
+  if (y > 0 && !cells[y - 1][x].visited) neighbors.push(cells[y - 1][x]);
+  if (x < gridSize - 1 && !cells[y][x + 1].visited) neighbors.push(cells[y][x + 1]);
+  if (y < gridSize - 1 && !cells[y + 1][x].visited) neighbors.push(cells[y + 1][x]);
+  if (x > 0 && !cells[y][x - 1].visited) neighbors.push(cells[y][x - 1]);
 
   return neighbors;
 }
@@ -346,17 +342,13 @@ function removeWall(current: Cell, next: Cell): void {
 /**
  * BFS to find shortest path length
  */
-function findShortestPath(
-  grid: ('wall' | 'path')[][],
-  start: Position,
-  end: Position
-): number {
+function findShortestPath(grid: Grid, start: Position, end: Position): number {
   const height = grid.length;
   const width = grid[0].length;
   const visited = Array(height)
     .fill(null)
     .map(() => Array(width).fill(false));
-  
+
   const queue: { pos: Position; dist: number }[] = [{ pos: start, dist: 0 }];
   let queueIndex = 0;
   visited[start.y][start.x] = true;
@@ -393,35 +385,30 @@ function findShortestPath(
     }
   }
 
-  return 0; // No path found
+  return 0;
 }
 
 /**
  * Get level configuration based on level number
  */
 export function getLevelConfig(level: number): LevelParams {
-  // Increase grid size every 3 levels, cap for performance
   const baseSize = 4;
   const maxGridSize = 11;
   const growthSize = Math.min(baseSize + Math.floor(level / 3), maxGridSize);
   const special = getSpecialByLevel(level);
-  // Keep grid size fixed after level 7 (7 -> size 6 -> 13x13 grid),
-  // but allow special levels to override for handcrafted layouts.
+
   const cappedSize = level <= 7 ? growthSize : Math.min(growthSize, 6);
   const gridSize = special?.gridSize ?? cappedSize;
 
-  // Complexity increases with level (but caps at 0.8)
   const complexity = Math.min(0.35 + level * 0.06, 0.9);
-  
-  // Deterministic seed based on level
-  // Level 3 and special levels get custom seeds for better layouts
+
   let seed: number;
   if (level === 3) {
-    seed = 1050; // Special seed for level 3 redesign
+    seed = 1050;
   } else {
     seed = special ? special.seed : 1000 + level * 7;
   }
-  
+
   return {
     gridSize,
     complexity,
@@ -433,30 +420,23 @@ export function getLevelConfig(level: number): LevelParams {
  * Calculate move limit based on solution length and level
  */
 export function calculateMoveLimit(solutionLength: number, level: number): number {
-  // Base: solution + 30% buffer
   const buffer = Math.ceil(solutionLength * 0.3);
-  
-  // Decrease buffer as level increases (harder)
   const levelPenalty = Math.floor(level * 0.5);
 
   let extra = 0;
-  if (level === 22) {
-    extra = 8;
-  }
-  if (level === 51) {
-    extra = 18;
-  }
+  if (level === 22) extra = 8;
+  if (level === 51) extra = 18;
+
   const advancedPenalty = level >= 22 && level <= 50 ? 6 : 0;
-  
+
   return Math.max(solutionLength + buffer - levelPenalty - advancedPenalty + extra, solutionLength + 2);
 }
 
 /**
  * Generate coins and doors for the level
- * Strategy: Coins are placed off the main path (can be collected during slide), doors are placed on the main path
  */
 function generateCoinsAndDoors(
-  grid: ('wall' | 'path')[][],
+  grid: Grid,
   startPos: Position,
   exitPos: Position,
   params: LevelParams,
@@ -465,14 +445,12 @@ function generateCoinsAndDoors(
 ): { coins: Coin[]; doors: Door[] } {
   const coins: Coin[] = [];
   const doors: Door[] = [];
-  
-  // Start adding coins from level 2
-  const level = Math.floor((params.seed - 1000) / 7); // Reverse engineer level from seed
-  // Special cases for custom seeds
+
+  const level = Math.floor((params.seed - 1000) / 7);
   const actualLevel =
     params.seed === 1050 ? 3 :
     getSpecialBySeed(params.seed)?.level ?? level;
-  
+
   if (actualLevel < 2) return { coins, doors };
 
   if (actualLevel >= 22) {
@@ -487,21 +465,18 @@ function generateCoinsAndDoors(
   if (special && (special.coins.length > 0 || special.doors.length > 0)) {
     return { coins: special.coins, doors: special.doors };
   }
-  
-  // Determine number of coin/door pairs based on level
+
   const basePairs = Math.min(Math.floor((actualLevel - 1) / 3) + 1, 3);
   const numPairs = basePairs;
-  
+
   if (numPairs === 0) return { coins, doors };
-  
+
   const colors: CoinColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
   const usedColors = colors.slice(0, numPairs);
-  
-  // Find main path from start to exit using BFS
+
   const { path: mainPath, distanceMap } = getPathAndDistanceMap(grid, startPos, exitPos, pathCacheKey);
   const mainPathSet = new Set(mainPath.map(p => `${p.x},${p.y}`));
-  
-  // Get all valid path positions (excluding start and exit)
+
   const allPathPositions: Position[] = [];
   for (let y = 0; y < grid.length; y++) {
     for (let x = 0; x < grid[0].length; x++) {
@@ -514,53 +489,41 @@ function generateCoinsAndDoors(
       }
     }
   }
-  
-  // Split positions into main path and off-path
+
   const mainPathPositions = allPathPositions.filter(p => mainPathSet.has(`${p.x},${p.y}`));
   const offPathPositions = allPathPositions.filter(p => !mainPathSet.has(`${p.x},${p.y}`));
-  
-  // Calculate distances from start for strategic placement
+
   const distanceMapRef = distanceMap;
-  
-  // Strategic placement: Coin must be between start and door
-  // This ensures player collects coin before reaching the door
-  
-  // Sort main path by distance from start
+
   mainPathPositions.sort((a, b) => {
     const distA = distanceMapRef.get(`${a.x},${a.y}`) || 0;
     const distB = distanceMapRef.get(`${b.x},${b.y}`) || 0;
-    return distA - distB; // Closer to start first
+    return distA - distB;
   });
-  
-  // Divide main path into segments for strategic placement
+
   const pathSegmentSize = Math.floor(mainPathPositions.length / (usedColors.length + 1));
-  
+
   for (let i = 0; i < usedColors.length; i++) {
     const color = usedColors[i];
-    
-    // Calculate segment indices for this pair
+
     const coinSegmentStart = i * pathSegmentSize;
     const coinSegmentEnd = coinSegmentStart + Math.floor(pathSegmentSize / 2);
     const doorSegmentStart = coinSegmentEnd;
     const doorSegmentEnd = (i + 1) * pathSegmentSize;
-    
-    // Place coin in the first half of the segment
+
     const coinCandidates = mainPathPositions.slice(coinSegmentStart, coinSegmentEnd);
     if (coinCandidates.length > 0) {
-      // Pick middle position for coin
       const coinPos = coinCandidates[Math.floor(coinCandidates.length / 2)];
       coins.push({ position: coinPos, color });
     }
-    
-    // Place door in the second half of the segment (after coin)
+
     const doorCandidates = mainPathPositions.slice(doorSegmentStart, doorSegmentEnd);
     if (doorCandidates.length > 0) {
-      // Pick middle position for door
       const doorPos = doorCandidates[Math.floor(doorCandidates.length / 2)];
       doors.push({ position: doorPos, color });
     }
   }
-  
+
   return { coins, doors };
 }
 
@@ -607,29 +570,22 @@ function ensureMinimumCoinDoorPair(
   return { coins, doors };
 }
 
-
-
 /**
  * Find all positions on the shortest path from start to end
  */
-function findPathPositions(
-  grid: ('wall' | 'path')[][],
-  start: Position,
-  end: Position
-): Position[] {
+function findPathPositions(grid: Grid, start: Position, end: Position): Position[] {
   const height = grid.length;
   const width = grid[0].length;
   const visited = new Map<string, Position | null>();
-  
+
   const queue: Position[] = [start];
   let queueIndex = 0;
   visited.set(`${start.x},${start.y}`, null);
-  
+
   while (queueIndex < queue.length) {
     const current = queue[queueIndex++];
-    
+
     if (current.x === end.x && current.y === end.y) {
-      // Reconstruct path
       const path: Position[] = [];
       let pos: Position | null = current;
       while (pos) {
@@ -639,18 +595,18 @@ function findPathPositions(
       }
       return path;
     }
-    
+
     const directions = [
       { x: 0, y: -1 },
       { x: 1, y: 0 },
       { x: 0, y: 1 },
       { x: -1, y: 0 },
     ];
-    
+
     for (const dir of directions) {
       const next = { x: current.x + dir.x, y: current.y + dir.y };
       const key: string = `${next.x},${next.y}`;
-      
+
       if (
         next.x >= 0 &&
         next.x < width &&
@@ -664,28 +620,11 @@ function findPathPositions(
       }
     }
   }
-  
+
   return [];
 }
 
-/**
- * Calculate minimum distance to main path
- */
-function getMinDistanceToMainPath(pos: Position, mainPath: Position[]): number {
-  let minDist = Infinity;
-  for (const pathPos of mainPath) {
-    const dist = Math.abs(pos.x - pathPos.x) + Math.abs(pos.y - pathPos.y);
-    minDist = Math.min(minDist, dist);
-  }
-  return minDist;
-}
-
-function getPathAndDistanceMap(
-  grid: Grid,
-  start: Position,
-  end: Position,
-  cacheKey: string
-): PathCacheEntry {
+function getPathAndDistanceMap(grid: Grid, start: Position, end: Position, cacheKey: string): PathCacheEntry {
   const cached = pathCache.get(cacheKey);
   if (cached) return cached;
 
@@ -847,16 +786,14 @@ function generateCoinsAndDoorsFallback(
   return { coins, doors };
 }
 
-function enforceCoinBeforeDoor(
-  grid: Grid,
-  startPos: Position,
-  exitPos: Position,
-  coins: Coin[],
-  doors: Door[]
-): void {
+function enforceCoinBeforeDoor(grid: Grid, startPos: Position, exitPos: Position, coins: Coin[], doors: Door[]): void {
   if (doors.length === 0 || coins.length === 0) return;
 
-  const distanceMap = calculateDistanceMap(grid, startPos);
+  // ✅ NEW: slide-aware distance map if it can reach exit, else fallback BFS distance map
+  const slideDist = calculateSlideDistanceMap(grid, startPos);
+  const hasSlideReach = slideDist.has(`${exitPos.x},${exitPos.y}`);
+  const distanceMap = hasSlideReach ? slideDist : calculateDistanceMap(grid, startPos);
+
   const mainPath = findPathPositions(grid, startPos, exitPos);
   const mainPathSorted = [...mainPath].sort((a, b) => {
     const distA = distanceMap.get(`${a.x},${a.y}`) ?? Infinity;
@@ -890,11 +827,7 @@ function enforceCoinBeforeDoor(
   }
 }
 
-function findShortestSlidePathPositions(
-  grid: Grid,
-  start: Position,
-  end: Position
-): Position[] {
+function findShortestSlidePathPositions(grid: Grid, start: Position, end: Position): Position[] {
   const height = grid.length;
   const width = grid[0]?.length ?? 0;
   const visited = new Map<string, Position | null>();
@@ -951,11 +884,7 @@ function findShortestSlidePathPositions(
   return [];
 }
 
-function buildGridFromSegments(
-  gridWidth: number,
-  gridHeight: number,
-  segments: GridSegment[]
-): Grid {
+function buildGridFromSegments(gridWidth: number, gridHeight: number, segments: GridSegment[]): Grid {
   const grid: Grid = Array(gridHeight)
     .fill(null)
     .map(() => Array(gridWidth).fill('wall'));
@@ -1009,16 +938,10 @@ function buildSlideSnakeGrid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a stable Level 12 grid aligned to slide mechanics.
- */
 function buildLevel12Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 
-/**
- * Build a more complex Level 15 grid aligned to slide mechanics.
- */
 function buildLevel15Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: 11, y2: 1 },
@@ -1040,16 +963,10 @@ function buildLevel15Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a stable Level 17 grid aligned to slide mechanics.
- */
 function buildLevel17Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 
-/**
- * Build the most complex Level 50 grid aligned to slide mechanics.
- */
 function buildLevel50Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: gridWidth - 2, y2: 1 },
@@ -1082,9 +999,6 @@ function buildLevel50Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a hand-shaped Level 7 grid with more stopping points
- */
 function buildLevel7Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: 1, y2: 5 },
@@ -1102,9 +1016,6 @@ function buildLevel7Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a hand-shaped Level 8 grid aligned to slide mechanics
- */
 function buildLevel8Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: 1, y2: 3 },
@@ -1126,9 +1037,6 @@ function buildLevel8Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a hand-shaped Level 18 grid aligned to slide mechanics
- */
 function buildLevel18Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: 1, y2: 5 },
@@ -1150,9 +1058,6 @@ function buildLevel18Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a hand-shaped Level 19 grid aligned to slide mechanics
- */
 function buildLevel19Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: 1, y2: 7 },
@@ -1174,9 +1079,6 @@ function buildLevel19Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a hand-shaped Level 20 grid aligned to slide mechanics
- */
 function buildLevel20Grid(gridWidth: number, gridHeight: number): Grid {
   const segments: GridSegment[] = [
     { x1: 1, y1: 1, x2: 1, y2: 7 },
@@ -1204,96 +1106,36 @@ function buildLevel20Grid(gridWidth: number, gridHeight: number): Grid {
   return grid;
 }
 
-/**
- * Build a hand-shaped Level 22 grid aligned to slide mechanics
- */
-function buildLevel22Grid(gridWidth: number, gridHeight: number): Grid {
-  const segments: GridSegment[] = [
-    { x1: 1, y1: 1, x2: 1, y2: 5 },
-    { x1: 1, y1: 5, x2: 13, y2: 5 },
-    { x1: 13, y1: 5, x2: 13, y2: 1 },
-    { x1: 13, y1: 1, x2: 19, y2: 1 },
-    { x1: 19, y1: 1, x2: 19, y2: 9 },
-    { x1: 19, y1: 9, x2: 9, y2: 9 },
-    { x1: 9, y1: 9, x2: 9, y2: 15 },
-    { x1: 9, y1: 15, x2: 3, y2: 15 },
-    { x1: 3, y1: 15, x2: 3, y2: 11 },
-    { x1: 3, y1: 11, x2: 7, y2: 11 },
-    { x1: 7, y1: 11, x2: 7, y2: 19 },
-    { x1: 7, y1: 19, x2: 19, y2: 19 },
-  ];
-
-  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
-  openStartExit(grid, gridWidth, gridHeight);
-  return grid;
-}
-
-/**
- * Build a hand-shaped Level 23 grid aligned to slide mechanics
- */
-function buildLevel23Grid(gridWidth: number, gridHeight: number): Grid {
-  const segments: GridSegment[] = [
-    { x1: 1, y1: 1, x2: 1, y2: 5 },
-    { x1: 1, y1: 5, x2: 11, y2: 5 },
-    { x1: 11, y1: 5, x2: 11, y2: 1 },
-    { x1: 11, y1: 1, x2: 19, y2: 1 },
-    { x1: 19, y1: 1, x2: 19, y2: 9 },
-    { x1: 19, y1: 9, x2: 13, y2: 9 },
-    { x1: 13, y1: 9, x2: 13, y2: 11 },
-    { x1: 13, y1: 11, x2: 7, y2: 11 },
-    { x1: 7, y1: 11, x2: 7, y2: 17 },
-    { x1: 7, y1: 17, x2: 5, y2: 17 },
-    { x1: 5, y1: 17, x2: 5, y2: 19 },
-    { x1: 5, y1: 19, x2: 19, y2: 19 },
-  ];
-
-  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
-  openStartExit(grid, gridWidth, gridHeight);
-  if (grid[12] && grid[12][7]) {
-    grid[12][7] = 'wall';
-  }
-  return grid;
-}
-
-/**
- * Build Level 51 grid from a fixed 23x23 layout.
- */
 function buildLevel51Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 
 /**
- * Build a hand-shaped Level 22 grid aligned to slide mechanics
- */
-/**
  * Calculate distance map from start position using BFS
  */
-function calculateDistanceMap(
-  grid: ('wall' | 'path')[][],
-  start: Position
-): Map<string, number> {
+function calculateDistanceMap(grid: Grid, start: Position): Map<string, number> {
   const height = grid.length;
   const width = grid[0].length;
   const distanceMap = new Map<string, number>();
-  
+
   const queue: { pos: Position; dist: number }[] = [{ pos: start, dist: 0 }];
   let queueIndex = 0;
   distanceMap.set(`${start.x},${start.y}`, 0);
-  
+
   while (queueIndex < queue.length) {
     const { pos, dist } = queue[queueIndex++];
-    
+
     const directions = [
       { x: 0, y: -1 },
       { x: 1, y: 0 },
       { x: 0, y: 1 },
       { x: -1, y: 0 },
     ];
-    
+
     for (const dir of directions) {
       const next = { x: pos.x + dir.x, y: pos.y + dir.y };
       const key = `${next.x},${next.y}`;
-      
+
       if (
         next.x >= 0 &&
         next.x < width &&
@@ -1307,6 +1149,66 @@ function calculateDistanceMap(
       }
     }
   }
-  
+
   return distanceMap;
+}
+
+/**
+ * ✅ NEW: slide neighbors + slide distance map
+ * These do NOT change your gameplay; they only help enforcement place doors correctly for sliding.
+ */
+function slideNeighbors(grid: Grid, pos: Position): Position[] {
+  const height = grid.length;
+  const width = grid[0]?.length ?? 0;
+
+  const dirs = [
+    { x: 0, y: -1 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: -1, y: 0 },
+  ];
+
+  const inBounds = (x: number, y: number) => x >= 0 && x < width && y >= 0 && y < height;
+
+  const slide = (p: Position, d: { x: number; y: number }) => {
+    let x = p.x, y = p.y;
+    while (true) {
+      const nx = x + d.x;
+      const ny = y + d.y;
+      if (!inBounds(nx, ny)) break;
+      if (grid[ny][nx] === 'wall') break;
+      x = nx; y = ny;
+    }
+    return { x, y };
+  };
+
+  const out: Position[] = [];
+  for (const d of dirs) {
+    const next = slide(pos, d);
+    if (next.x === pos.x && next.y === pos.y) continue;
+    out.push(next);
+  }
+  return out;
+}
+
+function calculateSlideDistanceMap(grid: Grid, start: Position): Map<string, number> {
+  const dist = new Map<string, number>();
+  const q: Position[] = [start];
+  let qi = 0;
+  dist.set(`${start.x},${start.y}`, 0);
+
+  while (qi < q.length) {
+    const cur = q[qi++];
+    const curKey = `${cur.x},${cur.y}`;
+    const curDist = dist.get(curKey) ?? 0;
+
+    for (const nxt of slideNeighbors(grid, cur)) {
+      const key = `${nxt.x},${nxt.y}`;
+      if (dist.has(key)) continue;
+      dist.set(key, curDist + 1);
+      q.push(nxt);
+    }
+  }
+
+  return dist;
 }
