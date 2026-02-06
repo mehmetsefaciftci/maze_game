@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { RefObject } from 'react';
 import { motion } from 'motion/react';
 import { Snowflake } from 'lucide-react';
@@ -10,6 +11,51 @@ interface BuzStageProps {
   onMenuReturn: () => void;
   mazeScale: number;
   mazeSlotRef: RefObject<HTMLDivElement>;
+}
+
+function SnowOverlay() {
+  // Generate once for stable snow and better perf
+  const flakes = useMemo(
+    () =>
+      Array.from({ length: 40 }).map((_, i) => ({
+        id: `snow-${i}`,
+        size: 2 + Math.random() * 3,
+        left: Math.random() * 100,
+        duration: 6 + Math.random() * 8,
+        delay: Math.random() * 4,
+        drift: (Math.random() - 0.5) * 22,
+      })),
+    []
+  );
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {flakes.map((flake) => (
+        <motion.div
+          key={flake.id}
+          className="absolute rounded-full bg-white/80"
+          style={{
+            width: flake.size,
+            height: flake.size,
+            left: `${flake.left}%`,
+            top: `-12%`,
+            filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.25))',
+          }}
+          animate={{
+            y: ['0%', '125%'],
+            x: [`0%`, `${flake.drift}%`],
+            opacity: [0.5, 0.9, 0.5],
+          }}
+          transition={{
+            duration: flake.duration,
+            repeat: Infinity,
+            delay: flake.delay,
+            ease: 'linear',
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function BuzStage({ gameState, onPause, onMenuReturn, mazeScale, mazeSlotRef }: BuzStageProps) {
@@ -29,6 +75,8 @@ export function BuzStage({ gameState, onPause, onMenuReturn, mazeScale, mazeSlot
             'radial-gradient(120% 70% at 50% 8%, rgba(220, 245, 255, 0.18), transparent 62%), radial-gradient(120% 70% at 50% 100%, rgba(20, 40, 70, 0.35), transparent 60%)',
         }}
       />
+
+      <SnowOverlay />
 
       {/* ice cave frame */}
       <div className="absolute inset-0 pointer-events-none">
