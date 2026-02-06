@@ -19,37 +19,14 @@ export function BuzStage({ gameState, onPause, onMenuReturn, mazeScale, mazeSlot
       <div
         className="absolute inset-0"
         style={{
-          background:
-            'linear-gradient(180deg, #0a1a33 0%, #0d274d 46%, #081426 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none opacity-35"
-        style={{
-          backgroundImage:
-            'radial-gradient(40% 35% at 20% 20%, rgba(90, 140, 200, 0.22), transparent 70%), radial-gradient(38% 40% at 82% 26%, rgba(120, 170, 220, 0.18), transparent 72%), radial-gradient(45% 48% at 58% 70%, rgba(70, 120, 180, 0.18), transparent 70%)',
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none opacity-45"
-        style={{
-          backgroundImage:
-            'radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.25) 0, transparent 70%), radial-gradient(1px 1px at 78% 28%, rgba(255,255,255,0.2) 0, transparent 70%), radial-gradient(1px 1px at 34% 72%, rgba(255,255,255,0.18) 0, transparent 70%), radial-gradient(1px 1px at 64% 62%, rgba(255,255,255,0.18) 0, transparent 70%), radial-gradient(1px 1px at 50% 52%, rgba(255,255,255,0.2) 0, transparent 70%)',
-          backgroundSize: '240px 240px',
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none opacity-8"
-        style={{
-          backgroundImage:
-            'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 45%), radial-gradient(120% 70% at 50% 12%, rgba(200, 230, 255, 0.18), transparent 60%)',
+          background: "url('/stages/ice-bg.png') center / cover no-repeat",
         }}
       />
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(120% 70% at 50% 8%, rgba(220, 245, 255, 0.16), transparent 62%), radial-gradient(120% 70% at 50% 100%, rgba(40, 70, 110, 0.4), transparent 60%)',
+            'radial-gradient(120% 70% at 50% 8%, rgba(220, 245, 255, 0.18), transparent 62%), radial-gradient(120% 70% at 50% 100%, rgba(20, 40, 70, 0.35), transparent 60%)',
         }}
       />
 

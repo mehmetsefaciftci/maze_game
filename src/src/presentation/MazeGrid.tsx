@@ -65,7 +65,7 @@ export const MazeGrid = memo(function MazeGrid({
     buz: {
       grid: 'rounded-3xl bg-gradient-to-b from-sky-100/35 via-cyan-100/30 to-sky-200/35 border-cyan-100/60 shadow-cyan-400/25',
       wall: 'bg-gradient-to-br from-white/95 via-sky-100/90 to-cyan-200/90 border border-white/70',
-      wallShadow: 'inset 0 2px 10px rgba(255,255,255,0.85), inset 0 -3px 10px rgba(120,160,200,0.35)',
+      wallShadow: 'inset 0 2px 10px rgba(255, 255, 255, 0.85), inset 0 -3px 10px rgba(120, 160, 200, 0.35)',
       path: 'bg-sky-900/10 border border-white/20 backdrop-blur-[1px]',
     },
     toprak: {
@@ -406,7 +406,7 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
             className="absolute inset-0 opacity-50"
             style={{
               backgroundImage:
-                'linear-gradient(45deg, transparent 20%, rgba(255,255,255,0.35) 50%, transparent 80%)',
+                'linear-gradient(45deg, transparent 20%, rgba(255, 255, 255, 0.35) 50%, transparent 80%)',
             }}
           />
         );
