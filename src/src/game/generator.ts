@@ -147,7 +147,7 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     level: 50,
     seed: 1350,
     build: buildLevel50Grid,
-    gridSize: 10,
+    gridSize: 6,
     coins: [],
     doors: [],
   },

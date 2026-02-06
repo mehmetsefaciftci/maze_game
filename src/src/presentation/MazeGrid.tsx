@@ -64,8 +64,8 @@ export const MazeGrid = memo(function MazeGrid({
     },
     buz: {
       grid: 'rounded-3xl bg-gradient-to-b from-sky-100/35 via-cyan-100/30 to-sky-200/35 border-cyan-100/60 shadow-cyan-400/25',
-      wall: 'bg-gradient-to-br from-sky-300/100 via-cyan-300/95 to-blue-500/90 border border-sky-200/80',
-      wallShadow: 'inset 0 2px 10px rgba(255, 255, 255, 0.75), inset 0 -3px 12px rgba(70, 110, 160, 0.45)',
+      wall: 'bg-gradient-to-br from-sky-100/100 via-cyan-200/98 to-sky-400/95 border border-white/90',
+      wallShadow: 'inset 0 3px 12px rgba(255, 255, 255, 0.75), inset 0 -4px 12px rgba(90, 130, 180, 0.35)',
       path: 'bg-sky-900/26 border border-white/35 backdrop-blur-[1px]',
     },
     toprak: {
