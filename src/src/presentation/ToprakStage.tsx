@@ -17,7 +17,13 @@ interface ToprakStageProps {
 // 2) Cracked soil (warning): slightly darker, subtle thin cracks, light dust, warning state.
 // 3) Collapsed soil (blocked): dark hollow center, crumbled edges, impassable.
 
-export function ToprakStage({ gameState, onPause, onRestart, mazeScale, mazeSlotRef }: ToprakStageProps) {
+export function ToprakStage({
+  gameState,
+  onPause,
+  onRestart,
+  mazeScale,
+  mazeSlotRef,
+}: ToprakStageProps) {
   return (
     <div className="min-h-dvh w-full relative overflow-hidden">
       <div

@@ -83,10 +83,10 @@ export const MazeGrid = memo(function MazeGrid({
     },
     volkan: {
       grid: 'rounded-2xl bg-gradient-to-br from-[#0e0606]/90 via-[#1a0b0b]/88 to-[#2c0d0b]/92 border-red-500/40',
-      wall: 'bg-gradient-to-br from-[#7f0a0a] via-[#e11d48] to-[#ff3b00] border border-[#ffb347]/90',
+      wall: 'bg-gradient-to-br from-[#8a0a0a] via-[#ef2d2d] to-[#ff3b00] border border-[#ffd166]/95',
       wallShadow:
-        'inset 0 -4px 12px rgba(0,0,0,0.7), inset 0 2px 14px rgba(255,80,0,0.65), 0 0 26px rgba(255, 40, 0, 0.7)',
-      path: 'bg-gradient-to-br from-[#1d0707]/92 via-[#2a0b0b]/90 to-[#4a140f]/92 border border-[#a32116]/65',
+        'inset 0 -5px 14px rgba(0,0,0,0.75), inset 0 3px 16px rgba(255,70,0,0.75), 0 0 28px rgba(255, 30, 0, 0.75)',
+      path: 'bg-gradient-to-br from-[#2a0707]/94 via-[#3a0b0b]/92 to-[#5a160f]/94 border border-[#c0261a]/75',
     },
   } as const;
 
@@ -333,7 +333,7 @@ const MazeCell = memo(function MazeCell({
           backgroundPosition: wallImage ? 'center' : undefined,
           backgroundSize: isVolkan ? '200% 200%' : wallImage ? 'cover' : undefined,
           animation: isVolkan ? 'volkanWallFlicker 2.2s ease-in-out infinite alternate' : undefined,
-          filter: isVolkan ? 'saturate(1.18) brightness(1.05)' : undefined,
+          filter: isVolkan ? 'saturate(1.35) brightness(1.12)' : undefined,
           ...sizeStyle,
         }}
         onClick={onClick}
@@ -521,7 +521,7 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
             className="absolute inset-0 opacity-50"
             style={{
               backgroundImage:
-                'linear-gradient(160deg, rgba(255,120,0,0.28) 0%, transparent 55%, rgba(255,0,0,0.22) 100%), radial-gradient(12px 10px at 30% 30%, rgba(255,200,120,0.35) 0, transparent 70%)',
+                'linear-gradient(160deg, rgba(255,120,0,0.38) 0%, transparent 55%, rgba(255,0,0,0.3) 100%), radial-gradient(14px 12px at 30% 30%, rgba(255,220,140,0.5) 0, transparent 70%), radial-gradient(6px 6px at 65% 70%, rgba(255,80,0,0.35) 0, transparent 70%)',
             }}
           />
         );
@@ -531,7 +531,7 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
           className="absolute inset-0 opacity-45"
           style={{
             backgroundImage:
-              'radial-gradient(6px 6px at 25% 35%, rgba(255,140,0,0.4) 0, transparent 70%), radial-gradient(8px 8px at 70% 65%, rgba(255,60,0,0.32) 0, transparent 70%), linear-gradient(135deg, rgba(255,90,0,0.12) 0%, transparent 60%)',
+              'radial-gradient(6px 6px at 25% 35%, rgba(255,140,0,0.5) 0, transparent 70%), radial-gradient(8px 8px at 70% 65%, rgba(255,60,0,0.4) 0, transparent 70%), linear-gradient(135deg, rgba(255,90,0,0.18) 0%, transparent 60%)',
           }}
         />
       );

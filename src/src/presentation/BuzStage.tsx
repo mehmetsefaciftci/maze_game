@@ -59,7 +59,14 @@ function SnowOverlay() {
   );
 }
 
-export function BuzStage({ gameState, onPause, onRestart, onMenuReturn, mazeScale, mazeSlotRef }: BuzStageProps) {
+export function BuzStage({
+  gameState,
+  onPause,
+  onRestart,
+  onMenuReturn,
+  mazeScale,
+  mazeSlotRef,
+}: BuzStageProps) {
   return (
     <div className="min-h-dvh w-full relative overflow-hidden">
       {/* background layers (winter cave vibe, low cost) */}

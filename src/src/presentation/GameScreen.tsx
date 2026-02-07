@@ -220,6 +220,7 @@ export function GameScreen() {
       saveUserProgress(user.username, next);
       return next;
     });
+
   }, [state.status, state.level, user]);
 
   // Keyboard controls
