@@ -169,6 +169,30 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     doors: [],
     overrideCoinsDoors: true,
   },
+  {
+    level: 106,
+    seed: 2069,
+    build: buildLevel106Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+  },
+  {
+    level: 109,
+    seed: 2075,
+    build: buildLevel109Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+  },
+  {
+    level: 126,
+    seed: 2194,
+    build: buildLevel126Grid,
+    gridSize: 8,
+    coins: [],
+    doors: [],
+  },
 ];
 
 function getSpecialByLevel(level: number): SpecialLevelConfig | undefined {
@@ -1127,6 +1151,18 @@ function buildLevel51Grid(gridWidth: number, gridHeight: number): Grid {
 }
 
 function buildLevel69Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel106Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel109Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel126Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 

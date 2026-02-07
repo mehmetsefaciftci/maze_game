@@ -31,6 +31,21 @@ export function ResultDialog({
   }
 
   const isWin = status === 'won';
+  const isStageTransition = isWin && [50, 100, 150, 200].includes(level);
+  const stageTransitionText = (() => {
+    switch (level) {
+      case 50:
+        return { from: 'Gezegen', to: 'Buz' };
+      case 100:
+        return { from: 'Buz', to: 'Toprak' };
+      case 150:
+        return { from: 'Toprak', to: 'Kum' };
+      case 200:
+        return { from: 'Kum', to: 'Volkan' };
+      default:
+        return null;
+    }
+  })();
 
   return (
     <motion.div
@@ -105,6 +120,12 @@ export function ResultDialog({
           {isWin ? 'Tebrikler!' : 'Oyun Bitti!'}
         </h2>
 
+        {isStageTransition && stageTransitionText && (
+          <div className="text-white/95 text-base font-bold mb-2">
+            {stageTransitionText.from} aşamasını tamamladınız ve {stageTransitionText.to} aşamasına ulaştınız.
+          </div>
+        )}
+
         {/* Stats */}
         <motion.div
           initial={{ scale: 0 }}
@@ -156,7 +177,9 @@ export function ResultDialog({
               onClick={onNextLevel}
               className="flex-1 bg-white text-purple-600 py-4 rounded-2xl font-black text-lg shadow-2xl"
             >
-              Sonraki Seviye: {level + 1}
+              {isStageTransition && stageTransitionText
+                ? `Sıradaki Aşama: ${stageTransitionText.to}`
+                : `Sonraki Seviye: ${level + 1}`}
             </motion.button>
           )}
         </div>

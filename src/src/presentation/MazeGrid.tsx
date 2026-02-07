@@ -70,9 +70,10 @@ export const MazeGrid = memo(function MazeGrid({
     },
     toprak: {
       grid: 'rounded-3xl bg-gradient-to-br from-[#3b2a1f]/75 via-[#2a1d16]/75 to-[#1f150f]/85 border-[#6b4a32]/35',
-      wall: 'bg-gradient-to-br from-[#b07a3c] via-[#8a5a2b] to-[#5a3a1f] border border-[#6e4a2b]/60',
+      wall: 'border border-[#6e4a2b]/60',
       wallShadow: 'inset 0 -2px 6px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.12)',
       path: 'bg-gradient-to-br from-[#6b4a2b]/75 to-[#3f2a1a]/85 border border-[#5a3a1f]/45',
+      wallImage: "url('/stages/toprak-wall.jpg')",
     },
     kum: {
       grid: 'rounded-2xl bg-gradient-to-br from-amber-900/70 to-orange-900/80 border-amber-500/30',
@@ -93,6 +94,7 @@ export const MazeGrid = memo(function MazeGrid({
   const wallClass = activeTheme.wall;
   const pathClass = activeTheme.path;
   const wallShadow = activeTheme.wallShadow;
+  const wallImage = activeTheme.wallImage;
 
   // ✅ collected coin colors (door unlock uses color, not a specific coin position)
   const collectedColors = useMemo(() => {
@@ -134,6 +136,7 @@ export const MazeGrid = memo(function MazeGrid({
           cellSizeClass={cellSizeClass}
           wallClass={wallClass}
           wallShadow={wallShadow}
+          wallImage={wallImage}
           pathClass={pathClass}
           themeKey={themeKey}
           cellPx={cellPx}
@@ -292,6 +295,7 @@ interface MazeCellProps {
   cellSizeClass: string;
   wallClass: string;
   wallShadow: string;
+  wallImage?: string;
   pathClass: string;
   themeKey: ThemeKey;
   cellPx: number;
@@ -303,6 +307,7 @@ const MazeCell = memo(function MazeCell({
   cellSizeClass,
   wallClass,
   wallShadow,
+  wallImage,
   pathClass,
   themeKey,
   cellPx,
@@ -316,7 +321,13 @@ const MazeCell = memo(function MazeCell({
     return (
       <div
         className={`${baseClass} ${wallClass}`}
-        style={{ boxShadow: wallShadow, ...sizeStyle }}
+        style={{
+          boxShadow: wallShadow,
+          backgroundImage: wallImage,
+          backgroundSize: wallImage ? 'cover' : undefined,
+          backgroundPosition: wallImage ? 'center' : undefined,
+          ...sizeStyle,
+        }}
         onClick={onClick}
       >
         {cellFx}
@@ -336,6 +347,7 @@ interface StaticGridProps {
   cellSizeClass: string;
   wallClass: string;
   wallShadow: string;
+  wallImage?: string;
   pathClass: string;
   themeKey: ThemeKey;
   cellPx: number;
@@ -346,6 +358,7 @@ const StaticGrid = memo(function StaticGrid({
   cellSizeClass,
   wallClass,
   wallShadow,
+  wallImage,
   pathClass,
   themeKey,
   cellPx,
@@ -362,6 +375,7 @@ const StaticGrid = memo(function StaticGrid({
               cellSizeClass={cellSizeClass}
               wallClass={wallClass}
               wallShadow={wallShadow}
+              wallImage={wallImage}
               pathClass={pathClass}
               themeKey={themeKey}
               cellPx={cellPx}
