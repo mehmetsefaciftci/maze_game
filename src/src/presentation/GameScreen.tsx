@@ -430,6 +430,32 @@ export function GameScreen() {
         />
       )}
 
+      {/* Volkan stage background (levels only) */}
+      {screen === 'game' && currentStage === 'volkan' && (
+        <>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "url('/stages/volkan-bg.jpg') center / cover no-repeat",
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(120% 80% at 50% 0%, rgba(255, 120, 0, 0.18) 0%, transparent 55%), radial-gradient(120% 80% at 50% 100%, rgba(80, 0, 0, 0.55) 0%, transparent 60%)',
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(255, 80, 0, 0.08) 0%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.35) 100%)',
+            }}
+          />
+        </>
+      )}
+
       {/* AUTH */}
       {screen === 'auth' ? (
         <div className="flex-1 flex items-center justify-center p-4 relative z-10">

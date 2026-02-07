@@ -82,10 +82,11 @@ export const MazeGrid = memo(function MazeGrid({
       path: 'bg-gradient-to-br from-[#d5b178]/30 via-[#c79b5d]/24 to-[#a7733f]/30 border border-[#f2d5a2]/30 backdrop-blur-[1px]',
     },
     volkan: {
-      grid: 'rounded-2xl bg-gradient-to-br from-zinc-950/80 to-red-950/80 border-red-500/30',
-      wall: 'bg-gradient-to-br from-zinc-700 via-red-700 to-rose-700 border border-red-300/40',
-      wallShadow: 'inset 0 -2px 4px rgba(0,0,0,0.45), inset 0 2px 4px rgba(255,255,255,0.15)',
-      path: 'bg-zinc-950/60 border border-red-900/30',
+      grid: 'rounded-2xl bg-gradient-to-br from-[#140707]/90 via-[#1b0b0b]/85 to-[#2a0c0c]/90 border-red-500/35',
+      wall: 'bg-gradient-to-br from-[#5a1c14] via-[#8b1a10] to-[#c2410c] border border-[#ffb347]/50',
+      wallShadow:
+        'inset 0 -3px 6px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,170,90,0.25), 0 0 12px rgba(255, 80, 0, 0.2)',
+      path: 'bg-gradient-to-br from-[#1a0b0b]/85 via-[#2a0f0f]/80 to-[#3a120e]/85 border border-[#7f1d1d]/50',
     },
   } as const;
 
@@ -486,7 +487,7 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
             className="absolute inset-0 opacity-50"
             style={{
               backgroundImage:
-                'linear-gradient(160deg, rgba(255,120,0,0.2) 0%, transparent 55%, rgba(255,0,0,0.18) 100%)',
+                'linear-gradient(160deg, rgba(255,120,0,0.28) 0%, transparent 55%, rgba(255,0,0,0.22) 100%), radial-gradient(12px 10px at 30% 30%, rgba(255,200,120,0.35) 0, transparent 70%)',
             }}
           />
         );
@@ -496,7 +497,7 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
           className="absolute inset-0 opacity-45"
           style={{
             backgroundImage:
-              'radial-gradient(6px 6px at 25% 35%, rgba(255,140,0,0.35) 0, transparent 70%), radial-gradient(8px 8px at 70% 65%, rgba(255,60,0,0.28) 0, transparent 70%)',
+              'radial-gradient(6px 6px at 25% 35%, rgba(255,140,0,0.4) 0, transparent 70%), radial-gradient(8px 8px at 70% 65%, rgba(255,60,0,0.32) 0, transparent 70%), linear-gradient(135deg, rgba(255,90,0,0.12) 0%, transparent 60%)',
           }}
         />
       );

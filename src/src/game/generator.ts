@@ -193,6 +193,51 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     coins: [],
     doors: [],
   },
+  {
+    level: 162,
+    seed: 2134,
+    build: buildLevel162Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+    overrideCoinsDoors: true,
+  },
+  {
+    level: 170,
+    seed: 2190,
+    build: buildLevel170Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+    overrideCoinsDoors: true,
+  },
+  {
+    level: 174,
+    seed: 2218,
+    build: buildLevel174Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+    overrideCoinsDoors: true,
+  },
+  {
+    level: 187,
+    seed: 2309,
+    build: buildLevel187Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+    overrideCoinsDoors: true,
+  },
+  {
+    level: 190,
+    seed: 2330,
+    build: buildLevel190Grid,
+    gridSize: 6,
+    coins: [],
+    doors: [],
+    overrideCoinsDoors: true,
+  },
 ];
 
 function getSpecialByLevel(level: number): SpecialLevelConfig | undefined {
@@ -321,6 +366,17 @@ export function generateMaze(params: LevelParams): {
 
   // Coins/doors
   const { coins, doors } = generateCoinsAndDoors(grid, startPos, exitPos, params, rng, pathCacheKey);
+
+  // Swap green coin/door positions for level 197 (requested tweak)
+  if (inferredLevel === 197) {
+    const greenCoin = coins.find((c) => c.color === 'green');
+    const greenDoor = doors.find((d) => d.color === 'green');
+    if (greenCoin && greenDoor) {
+      const tmp = greenCoin.position;
+      greenCoin.position = greenDoor.position;
+      greenDoor.position = tmp;
+    }
+  }
 
   const usesSpecialCoins = Boolean(
     specialBySeed && (specialBySeed.coins.length > 0 || specialBySeed.doors.length > 0)
@@ -462,6 +518,7 @@ export function calculateMoveLimit(solutionLength: number, level: number): numbe
   let extra = 0;
   if (level === 22) extra = 8;
   if (level === 51) extra = 18;
+  if (level === 197) return 35;
 
   const advancedPenalty = level >= 22 && level <= 50 ? 6 : 0;
 
@@ -1163,6 +1220,31 @@ function buildLevel109Grid(gridWidth: number, gridHeight: number): Grid {
 }
 
 function buildLevel126Grid(gridWidth: number, gridHeight: number): Grid {
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel162Grid(gridWidth: number, gridHeight: number): Grid {
+  // Easier, deterministic slide-friendly layout for the sand stage.
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel170Grid(gridWidth: number, gridHeight: number): Grid {
+  // Keep same difficulty profile as 162: guaranteed solvable without coin/door locks.
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel174Grid(gridWidth: number, gridHeight: number): Grid {
+  // Same safe layout for a troublesome sand stage.
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel187Grid(gridWidth: number, gridHeight: number): Grid {
+  // Same safe layout for a troublesome sand stage.
+  return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function buildLevel190Grid(gridWidth: number, gridHeight: number): Grid {
+  // Same safe layout for a troublesome sand stage.
   return buildSlideSnakeGrid(gridWidth, gridHeight);
 }
 
