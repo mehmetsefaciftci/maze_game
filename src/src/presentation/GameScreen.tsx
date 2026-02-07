@@ -443,14 +443,14 @@ export function GameScreen() {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'radial-gradient(120% 80% at 50% 0%, rgba(255, 120, 0, 0.18) 0%, transparent 55%), radial-gradient(120% 80% at 50% 100%, rgba(80, 0, 0, 0.55) 0%, transparent 60%)',
+                'radial-gradient(120% 85% at 50% 0%, rgba(255, 110, 0, 0.22) 0%, transparent 58%), radial-gradient(120% 80% at 50% 100%, rgba(40, 0, 0, 0.65) 0%, transparent 62%)',
             }}
           />
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'linear-gradient(180deg, rgba(255, 80, 0, 0.08) 0%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.35) 100%)',
+                'linear-gradient(180deg, rgba(255, 90, 0, 0.12) 0%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.45) 100%)',
             }}
           />
         </>

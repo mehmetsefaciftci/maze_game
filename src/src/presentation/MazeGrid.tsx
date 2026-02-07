@@ -82,11 +82,11 @@ export const MazeGrid = memo(function MazeGrid({
       path: 'bg-gradient-to-br from-[#d5b178]/30 via-[#c79b5d]/24 to-[#a7733f]/30 border border-[#f2d5a2]/30 backdrop-blur-[1px]',
     },
     volkan: {
-      grid: 'rounded-2xl bg-gradient-to-br from-[#140707]/90 via-[#1b0b0b]/85 to-[#2a0c0c]/90 border-red-500/35',
-      wall: 'bg-gradient-to-br from-[#5a1c14] via-[#8b1a10] to-[#c2410c] border border-[#ffb347]/50',
+      grid: 'rounded-2xl bg-gradient-to-br from-[#0e0606]/90 via-[#1a0b0b]/88 to-[#2c0d0b]/92 border-red-500/40',
+      wall: 'bg-gradient-to-br from-[#2b0b06] via-[#7a1c12] to-[#ff6a00] border border-[#ffb347]/60',
       wallShadow:
-        'inset 0 -3px 6px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,170,90,0.25), 0 0 12px rgba(255, 80, 0, 0.2)',
-      path: 'bg-gradient-to-br from-[#1a0b0b]/85 via-[#2a0f0f]/80 to-[#3a120e]/85 border border-[#7f1d1d]/50',
+        'inset 0 -4px 8px rgba(0,0,0,0.6), inset 0 2px 8px rgba(255,120,40,0.35), 0 0 16px rgba(255, 90, 0, 0.35)',
+      path: 'bg-gradient-to-br from-[#140707]/88 via-[#240c0c]/82 to-[#3a130f]/88 border border-[#8f241a]/55',
     },
   } as const;
 
