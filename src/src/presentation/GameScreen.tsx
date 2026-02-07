@@ -145,8 +145,14 @@ export function GameScreen() {
     const level8GridSize = 13;
     const baseWidth = paddingPx * 2 + level8GridSize * cellPx + (level8GridSize - 1) * gapPx;
     const baseHeight = paddingPx * 2 + level8GridSize * cellPx + (level8GridSize - 1) * gapPx;
-    return { totalWidth, totalHeight, baseWidth, baseHeight };
-  }, [grid, currentStage]);
+    const useBaseClamp = !(currentStage === 'gezegen' && state.level <= 7);
+    return {
+      totalWidth,
+      totalHeight,
+      baseWidth: useBaseClamp ? baseWidth : totalWidth,
+      baseHeight: useBaseClamp ? baseHeight : totalHeight,
+    };
+  }, [grid, currentStage, state.level]);
 
   useEffect(() => {
     if (!mazeSlotRef.current || !mazeSize) return;
@@ -384,6 +390,21 @@ export function GameScreen() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {screen === 'game' && currentStage === 'volkan' && (
+        <style>
+          {`
+          @keyframes volkanBgGlow {
+            0% { opacity: 0.75; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+            100% { opacity: 0.8; transform: scale(1); }
+          }
+          @keyframes volkanEmbers {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+          }
+        `}
+        </style>
+      )}
       {/* Animated background stars */}
       {!(screen === 'game' && (isIceStage || isToprakStage)) && (
         <>
@@ -440,17 +461,27 @@ export function GameScreen() {
             }}
           />
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0 pointer-events-none volkan-bg-glow"
             style={{
               background:
                 'radial-gradient(120% 85% at 50% 0%, rgba(255, 110, 0, 0.22) 0%, transparent 58%), radial-gradient(120% 80% at 50% 100%, rgba(40, 0, 0, 0.65) 0%, transparent 62%)',
             }}
           />
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0 pointer-events-none volkan-bg-dim"
             style={{
               background:
                 'linear-gradient(180deg, rgba(255, 90, 0, 0.12) 0%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.45) 100%)',
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(2px 2px at 20% 30%, rgba(255, 180, 80, 0.28) 0, transparent 60%), radial-gradient(2px 2px at 70% 40%, rgba(255, 90, 0, 0.22) 0, transparent 60%), radial-gradient(3px 3px at 45% 65%, rgba(255, 140, 0, 0.24) 0, transparent 60%), radial-gradient(2px 2px at 80% 75%, rgba(255, 200, 100, 0.2) 0, transparent 60%)',
+              backgroundSize: '220% 220%',
+              animation: 'volkanEmbers 10s linear infinite',
+              opacity: 0.7,
             }}
           />
         </>

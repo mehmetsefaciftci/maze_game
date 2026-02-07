@@ -83,17 +83,18 @@ export const MazeGrid = memo(function MazeGrid({
     },
     volkan: {
       grid: 'rounded-2xl bg-gradient-to-br from-[#0e0606]/90 via-[#1a0b0b]/88 to-[#2c0d0b]/92 border-red-500/40',
-      wall: 'bg-gradient-to-br from-[#2b0b06] via-[#7a1c12] to-[#ff6a00] border border-[#ffb347]/60',
+      wall: 'bg-gradient-to-br from-[#7f0a0a] via-[#e11d48] to-[#ff3b00] border border-[#ffb347]/90',
       wallShadow:
-        'inset 0 -4px 8px rgba(0,0,0,0.6), inset 0 2px 8px rgba(255,120,40,0.35), 0 0 16px rgba(255, 90, 0, 0.35)',
-      path: 'bg-gradient-to-br from-[#140707]/88 via-[#240c0c]/82 to-[#3a130f]/88 border border-[#8f241a]/55',
+        'inset 0 -4px 12px rgba(0,0,0,0.7), inset 0 2px 14px rgba(255,80,0,0.65), 0 0 26px rgba(255, 40, 0, 0.7)',
+      path: 'bg-gradient-to-br from-[#1d0707]/92 via-[#2a0b0b]/90 to-[#4a140f]/92 border border-[#a32116]/65',
     },
   } as const;
 
   const themeKey: ThemeKey = theme === 'ice' || theme === 'default' ? 'gezegen' : theme;
   const activeTheme = themeTokens[theme];
-  const wallClass = activeTheme.wall;
-  const pathClass = activeTheme.path;
+  const wallClass = activeTheme.wall + (themeKey === 'volkan' ? ' volkan-wall' : '');
+  const pathClass = activeTheme.path + (themeKey === 'volkan' ? ' volkan-path' : '');
+  const isVolkan = themeKey === 'volkan';
   const wallShadow = activeTheme.wallShadow;
   const wallImage = activeTheme.wallImage;
 
@@ -141,6 +142,7 @@ export const MazeGrid = memo(function MazeGrid({
           pathClass={pathClass}
           themeKey={themeKey}
           cellPx={cellPx}
+          isVolkan={isVolkan}
         />
 
         {/* Coins */}
@@ -300,6 +302,7 @@ interface MazeCellProps {
   pathClass: string;
   themeKey: ThemeKey;
   cellPx: number;
+  isVolkan?: boolean;
 }
 
 const MazeCell = memo(function MazeCell({
@@ -312,6 +315,7 @@ const MazeCell = memo(function MazeCell({
   pathClass,
   themeKey,
   cellPx,
+  isVolkan,
 }: MazeCellProps) {
   const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150 relative overflow-hidden`;
   const sizeStyle = cellSizeClass ? undefined : { width: cellPx, height: cellPx };
@@ -327,6 +331,9 @@ const MazeCell = memo(function MazeCell({
           backgroundImage: wallImage,
           backgroundSize: wallImage ? 'cover' : undefined,
           backgroundPosition: wallImage ? 'center' : undefined,
+          backgroundSize: isVolkan ? '200% 200%' : wallImage ? 'cover' : undefined,
+          animation: isVolkan ? 'volkanWallFlicker 2.2s ease-in-out infinite alternate' : undefined,
+          filter: isVolkan ? 'saturate(1.18) brightness(1.05)' : undefined,
           ...sizeStyle,
         }}
         onClick={onClick}
@@ -337,7 +344,16 @@ const MazeCell = memo(function MazeCell({
   }
 
   return (
-    <div className={`${baseClass} ${pathClass}`} style={sizeStyle} onClick={onClick}>
+    <div
+      className={`${baseClass} ${pathClass}`}
+      style={{
+        ...sizeStyle,
+        backgroundSize: isVolkan ? '160% 160%' : undefined,
+        animation: isVolkan ? 'volkanPathPulse 3.6s ease-in-out infinite alternate' : undefined,
+        filter: isVolkan ? 'saturate(1.08)' : undefined,
+      }}
+      onClick={onClick}
+    >
       {cellFx}
     </div>
   );
@@ -352,6 +368,7 @@ interface StaticGridProps {
   pathClass: string;
   themeKey: ThemeKey;
   cellPx: number;
+  isVolkan?: boolean;
 }
 
 const StaticGrid = memo(function StaticGrid({
@@ -363,9 +380,25 @@ const StaticGrid = memo(function StaticGrid({
   pathClass,
   themeKey,
   cellPx,
+  isVolkan,
 }: StaticGridProps) {
+  const canUseDom = typeof document !== 'undefined';
   return (
     <>
+      {isVolkan && canUseDom && (
+        <style>
+          {`
+          @keyframes volkanWallFlicker {
+            0% { background-position: 0% 50%; filter: saturate(1.1) brightness(1.02); }
+            100% { background-position: 100% 50%; filter: saturate(1.25) brightness(1.12); }
+          }
+          @keyframes volkanPathPulse {
+            0% { background-position: 0% 0%; opacity: 0.95; }
+            100% { background-position: 100% 100%; opacity: 1; }
+          }
+        `}
+        </style>
+      )}
       {grid.map((row, y) =>
         row.map((cell, x) => {
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
@@ -380,6 +413,7 @@ const StaticGrid = memo(function StaticGrid({
               pathClass={pathClass}
               themeKey={themeKey}
               cellPx={cellPx}
+              isVolkan={isVolkan}
               // prod'da istersen kaldırırız
               onClick={() => console.log('cell', { x, y })}
             />
