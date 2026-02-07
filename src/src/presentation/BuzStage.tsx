@@ -67,6 +67,11 @@ export function BuzStage({
   mazeScale,
   mazeSlotRef,
 }: BuzStageProps) {
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = Math.max(0, totalSeconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
   return (
     <div className="min-h-dvh w-full relative overflow-hidden">
       {/* background layers (winter cave vibe, low cost) */}
@@ -223,6 +228,22 @@ export function BuzStage({
                 <div className="text-2xl font-black tabular-nums">{gameState.movesLeft}</div>
               </motion.div>
 
+              {gameState.timeLeft !== null && (
+                <motion.div
+                  key={gameState.timeLeft}
+                  initial={{ scale: 1.2, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="px-4 py-2 rounded-2xl text-white shadow-2xl"
+                  style={{
+                    background: 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)',
+                    boxShadow: '0 0 26px rgba(56, 189, 248, 0.45)',
+                  }}
+                >
+                  <div className="text-xs font-bold opacity-80">SÜRE</div>
+                  <div className="text-2xl font-black tabular-nums">{formatTime(gameState.timeLeft)}</div>
+                </motion.div>
+              )}
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={onPause}
@@ -261,6 +282,17 @@ export function BuzStage({
                 transition={{ duration: 0.3 }}
               />
             </div>
+
+            {gameState.timeLeft !== null && gameState.maxTime !== null && (
+              <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-sky-300 to-cyan-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.max(0, Math.min(100, Math.round((gameState.timeLeft / gameState.maxTime) * 100)))}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -285,6 +317,8 @@ export function BuzStage({
                   coins={gameState.coins}
                   doors={gameState.doors}
                   collectedCoins={gameState.collectedCoins}
+                  icyCells={gameState.icyCells}
+                  lastMoveIcy={gameState.lastMoveIcy}
                   theme="buz"
                 />
               </div>

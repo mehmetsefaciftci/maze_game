@@ -266,6 +266,7 @@ export function generateMaze(params: LevelParams): {
   solutionLength: number;
   coins: Coin[];
   doors: Door[];
+  icyCells: Set<string>;
 } {
   const { gridSize, seed } = params;
   const rng = new SeededRandom(seed);
@@ -385,6 +386,16 @@ export function generateMaze(params: LevelParams): {
     enforceCoinBeforeDoor(grid, startPos, exitPos, coins, doors);
   }
 
+  const icyCells = generateIcyCells(
+    grid,
+    startPos,
+    exitPos,
+    coins,
+    doors,
+    rng,
+    inferredLevel
+  );
+
   return {
     grid: {
       width: gridWidth,
@@ -396,6 +407,7 @@ export function generateMaze(params: LevelParams): {
     solutionLength,
     coins,
     doors,
+    icyCells,
   };
 }
 
@@ -1205,6 +1217,47 @@ function buildLevel20Grid(gridWidth: number, gridHeight: number): Grid {
 
 function buildLevel51Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);
+}
+
+function generateIcyCells(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  coins: Coin[],
+  doors: Door[],
+  rng: SeededRandom,
+  level: number
+): Set<string> {
+  if (getStageTheme(level) !== 'buz') return new Set();
+
+  const blocked = new Set<string>();
+  blocked.add(`${startPos.x},${startPos.y}`);
+  blocked.add(`${exitPos.x},${exitPos.y}`);
+  for (const coin of coins) blocked.add(`${coin.position.x},${coin.position.y}`);
+  for (const door of doors) blocked.add(`${door.position.x},${door.position.y}`);
+
+  const candidates: Position[] = [];
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[0].length; x++) {
+      if (grid[y][x] !== 'path') continue;
+      const key = `${x},${y}`;
+      if (blocked.has(key)) continue;
+      candidates.push({ x, y });
+    }
+  }
+
+  const maxCount = Math.min(24, Math.max(6, Math.floor(candidates.length * 0.12)));
+  const selected = new Set<string>();
+  const pool = [...candidates];
+  let count = 0;
+  while (pool.length > 0 && count < maxCount) {
+    const idx = rng.nextInt(0, pool.length);
+    const pos = pool.splice(idx, 1)[0];
+    selected.add(`${pos.x},${pos.y}`);
+    count += 1;
+  }
+
+  return selected;
 }
 
 function buildLevel69Grid(gridWidth: number, gridHeight: number): Grid {

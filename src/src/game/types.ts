@@ -52,6 +52,8 @@ export interface HistoryEntry {
   playerPos: Position;
   movesLeft: number;
   collectedCoins: Set<string>; // "x,y" format
+  timeLeft?: number | null;
+  lastMoveIcy?: boolean;
 }
 
 export interface MazeState {
@@ -61,9 +63,13 @@ export interface MazeState {
   exitPos: Position;
   coins: Coin[];
   doors: Door[];
+  icyCells: Set<string>;
   collectedCoins: Set<string>; // "x,y" format
   movesLeft: number;
   maxMoves: number;
+  timeLeft: number | null;
+  maxTime: number | null;
+  lastMoveIcy: boolean;
   status: GameStatus;
   history: HistoryEntry[];
   seed: number;
@@ -80,6 +86,7 @@ export type GameAction =
   | { type: 'MOVE'; direction: Direction }
   | { type: 'UNDO' }
   | { type: 'RESTART' }
+  | { type: 'TICK'; seconds: number }
   | { type: 'NEXT_LEVEL' }
   | { type: 'LOAD_LEVEL'; level: number; seed?: number };
 

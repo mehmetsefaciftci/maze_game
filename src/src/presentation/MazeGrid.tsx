@@ -19,6 +19,8 @@ interface MazeGridProps {
   coins: Coin[];
   doors: Door[];
   collectedCoins: Set<string>; // stores "x,y" of collected coins
+  icyCells?: Set<string>;
+  lastMoveIcy?: boolean;
   theme?: StageTheme;
 }
 
@@ -29,6 +31,8 @@ export const MazeGrid = memo(function MazeGrid({
   coins,
   doors,
   collectedCoins,
+  icyCells,
+  lastMoveIcy,
   theme = 'gezegen',
 }: MazeGridProps) {
   const height = grid.length;
@@ -95,6 +99,8 @@ export const MazeGrid = memo(function MazeGrid({
   const wallClass = activeTheme.wall + (themeKey === 'volkan' ? ' volkan-wall' : '');
   const pathClass = activeTheme.path + (themeKey === 'volkan' ? ' volkan-path' : '');
   const isVolkan = themeKey === 'volkan';
+  const isPlayerOnIce = icyCells?.has(`${playerPos.x},${playerPos.y}`) ?? false;
+  const shouldSlowMove = Boolean(lastMoveIcy);
   const wallShadow = activeTheme.wallShadow;
   const wallImage = activeTheme.wallImage;
 
@@ -143,6 +149,7 @@ export const MazeGrid = memo(function MazeGrid({
           themeKey={themeKey}
           cellPx={cellPx}
           isVolkan={isVolkan}
+          icyCells={icyCells}
         />
 
         {/* Coins */}
@@ -270,8 +277,27 @@ export const MazeGrid = memo(function MazeGrid({
             x: playerPos.x * cellStep,
             y: playerPos.y * cellStep,
           }}
-          transition={{ type: 'spring', stiffness: 800, damping: 30, mass: 0.3 }}
+          transition={
+            shouldSlowMove
+              ? { type: 'tween', duration: 1.3, ease: 'easeOut' }
+              : { type: 'spring', stiffness: 800, damping: 30, mass: 0.3 }
+          }
         >
+          {isPlayerOnIce && (
+            <motion.div
+              key={`freeze-${playerPos.x}-${playerPos.y}`}
+              className="absolute inset-0 rounded-full"
+              initial={{ scale: 0.4, opacity: 0.0 }}
+              animate={{ scale: [0.4, 1.9, 1.2], opacity: [0.0, 1, 0.0] }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              style={{
+                background:
+                  'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(200,245,255,0.75) 35%, rgba(120,200,255,0.0) 70%)',
+                boxShadow: '0 0 28px rgba(180, 230, 255, 0.95)',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
           <motion.div
             className="absolute inset-0 bg-cyan-400 rounded-full blur-md"
             animate={{ opacity: [0, 0.5, 0], scale: [0.7, 1.4, 0.7] }}
@@ -303,6 +329,7 @@ interface MazeCellProps {
   themeKey: ThemeKey;
   cellPx: number;
   isVolkan?: boolean;
+  isIceCell?: boolean;
 }
 
 const MazeCell = memo(function MazeCell({
@@ -316,6 +343,7 @@ const MazeCell = memo(function MazeCell({
   themeKey,
   cellPx,
   isVolkan,
+  isIceCell,
 }: MazeCellProps) {
   const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150 relative overflow-hidden`;
   const sizeStyle = cellSizeClass ? undefined : { width: cellPx, height: cellPx };
@@ -351,9 +379,29 @@ const MazeCell = memo(function MazeCell({
         backgroundSize: isVolkan ? '160% 160%' : undefined,
         animation: isVolkan ? 'volkanPathPulse 3.6s ease-in-out infinite alternate' : undefined,
         filter: isVolkan ? 'saturate(1.08)' : undefined,
+        border: isIceCell ? '1px solid rgba(140, 220, 255, 0.85)' : undefined,
+        boxShadow: isIceCell ? 'inset 0 0 8px rgba(120, 200, 255, 0.6)' : undefined,
       }}
       onClick={onClick}
     >
+      {isIceCell && (
+        <>
+          <span
+            className="absolute inset-0 opacity-70"
+            style={{
+              backgroundImage:
+                'linear-gradient(135deg, rgba(200,250,255,0.7) 0%, rgba(140,215,255,0.4) 45%, rgba(60,140,220,0.28) 100%), radial-gradient(6px 6px at 25% 25%, rgba(230,255,255,0.85) 0, transparent 60%), radial-gradient(4px 4px at 70% 60%, rgba(190,235,255,0.7) 0, transparent 60%)',
+            }}
+          />
+          <span
+            className="absolute inset-0 opacity-55"
+            style={{
+              backgroundImage:
+                'linear-gradient(135deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.0) 40%, rgba(255,255,255,0.5) 65%, rgba(255,255,255,0.0) 100%), linear-gradient(35deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.0) 35%, rgba(255,255,255,0.45) 70%, rgba(255,255,255,0.0) 100%), linear-gradient(80deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.0) 50%, rgba(255,255,255,0.35) 85%, rgba(255,255,255,0.0) 100%), radial-gradient(1px 1px at 25% 30%, rgba(255,255,255,0.85) 0, transparent 60%), radial-gradient(1px 1px at 75% 60%, rgba(255,255,255,0.8) 0, transparent 60%)',
+            }}
+          />
+        </>
+      )}
       {cellFx}
     </div>
   );
@@ -369,6 +417,7 @@ interface StaticGridProps {
   themeKey: ThemeKey;
   cellPx: number;
   isVolkan?: boolean;
+  icyCells?: Set<string>;
 }
 
 const StaticGrid = memo(function StaticGrid({
@@ -381,6 +430,7 @@ const StaticGrid = memo(function StaticGrid({
   themeKey,
   cellPx,
   isVolkan,
+  icyCells,
 }: StaticGridProps) {
   const canUseDom = typeof document !== 'undefined';
   return (
@@ -402,6 +452,7 @@ const StaticGrid = memo(function StaticGrid({
       {grid.map((row, y) =>
         row.map((cell, x) => {
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
+          const isIceCell = icyCells?.has(`${x},${y}`) ?? false;
           return (
             <MazeCell
               key={`${x}-${y}`}
@@ -414,6 +465,7 @@ const StaticGrid = memo(function StaticGrid({
               themeKey={themeKey}
               cellPx={cellPx}
               isVolkan={isVolkan}
+              isIceCell={isIceCell}
               // prod'da istersen kaldırırız
               onClick={() => console.log('cell', { x, y })}
             />

@@ -271,6 +271,20 @@ export function GameScreen() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isGameActive, canUndoMove]);
 
+  // Ice stage timer
+  useEffect(() => {
+    if (screen !== 'game') return;
+    if (currentStage !== 'buz') return;
+    if (state.status !== 'playing') return;
+    if (paused) return;
+
+    const id = window.setInterval(() => {
+      dispatch({ type: 'TICK', seconds: 1 });
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [screen, currentStage, state.status, paused]);
+
   // Touch/swipe controls
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
@@ -624,6 +638,8 @@ export function GameScreen() {
                         coins={state.coins}
                         doors={state.doors}
                         collectedCoins={state.collectedCoins}
+                        icyCells={state.icyCells}
+                        lastMoveIcy={state.lastMoveIcy}
                         theme={currentStage}
                       />
                     </div>

@@ -6,6 +6,14 @@
 import type { MazeState, GameAction, Direction, Position } from './types';
 import { MAX_LEVEL } from './types';
 import { generateMaze, getLevelConfig, calculateMoveLimit } from './generator';
+import { getStageTheme, toStageLocalLevel } from './stage';
+
+function getIceTimeLimit(level: number): number | null {
+  if (getStageTheme(level) !== 'buz') return null;
+  const localLevel = toStageLocalLevel(level); // 1..50
+  const time = Math.round(60 - (localLevel - 1) * 0.4);
+  return Math.max(35, time);
+}
 
 /**
  * Create initial game state for a level
@@ -16,8 +24,9 @@ export function createLevel(level: number, seed?: number): MazeState {
     config.seed = seed;
   }
 
-  const { grid, startPos, exitPos, solutionLength, coins, doors } = generateMaze(config);
+  const { grid, startPos, exitPos, solutionLength, coins, doors, icyCells } = generateMaze(config);
   const maxMoves = calculateMoveLimit(solutionLength, level);
+  const maxTime = getIceTimeLimit(level);
 
   return {
     level,
@@ -26,9 +35,13 @@ export function createLevel(level: number, seed?: number): MazeState {
     exitPos,
     coins,
     doors,
+    icyCells,
     collectedCoins: new Set(),
     movesLeft: maxMoves,
     maxMoves,
+    timeLeft: maxTime,
+    maxTime,
+    lastMoveIcy: false,
     status: 'playing',
     history: [],
     seed: config.seed,
@@ -47,6 +60,7 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
 
   let currentPos = state.playerPos;
   let lastValidPos = currentPos;
+  let touchedIce = false;
 
   // ✅ Copy Set so we never mutate state.collectedCoins reference
   let newCollectedCoins = new Set(state.collectedCoins);
@@ -81,6 +95,9 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     // Valid move, continue sliding
     lastValidPos = nextPos;
     currentPos = nextPos;
+    if (state.icyCells.has(`${currentPos.x},${currentPos.y}`)) {
+      touchedIce = true;
+    }
 
     // Collect coin if present at this position (your current rule: pass-through collects)
     const coin = state.coins.find(c => c.position.x === currentPos.x && c.position.y === currentPos.y);
@@ -105,10 +122,13 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
       playerPos: state.playerPos,
       movesLeft: state.movesLeft,
       collectedCoins: new Set(state.collectedCoins),
+      timeLeft: state.timeLeft,
+      lastMoveIcy: state.lastMoveIcy,
     },
   ];
 
   const newMovesLeft = state.movesLeft - 1;
+  const nextTimeLeft = state.timeLeft;
 
   // Win condition: at exit AND all coins collected (your current rule stays)
   if (lastValidPos.x === state.exitPos.x && lastValidPos.y === state.exitPos.y) {
@@ -118,25 +138,41 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     });
 
     if (allCoinsCollected) {
-      return {
-        ...state,
+      if (nextTimeLeft !== null && nextTimeLeft <= 0) {
+        return {
+          ...state,
         playerPos: lastValidPos,
         collectedCoins: newCollectedCoins,
         movesLeft: newMovesLeft,
-        status: 'won',
+        timeLeft: nextTimeLeft,
+        lastMoveIcy: touchedIce,
+        status: 'lost',
         history: newHistory,
       };
     }
-    // If not all coins collected, game continues (your current behavior stays)
-  }
-
-  // Lose condition (your current behavior stays)
-  if (newMovesLeft <= 0) {
     return {
       ...state,
       playerPos: lastValidPos,
       collectedCoins: newCollectedCoins,
       movesLeft: newMovesLeft,
+      timeLeft: nextTimeLeft,
+      lastMoveIcy: touchedIce,
+      status: 'won',
+      history: newHistory,
+    };
+    }
+    // If not all coins collected, game continues (your current behavior stays)
+  }
+
+  // Lose condition (your current behavior stays)
+  if (newMovesLeft <= 0 || (nextTimeLeft !== null && nextTimeLeft <= 0)) {
+    return {
+      ...state,
+      playerPos: lastValidPos,
+      collectedCoins: newCollectedCoins,
+      movesLeft: newMovesLeft,
+      timeLeft: nextTimeLeft,
+      lastMoveIcy: touchedIce,
       status: 'lost',
       history: newHistory,
     };
@@ -147,6 +183,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     playerPos: lastValidPos,
     collectedCoins: newCollectedCoins,
     movesLeft: newMovesLeft,
+    timeLeft: nextTimeLeft,
+    lastMoveIcy: touchedIce,
     history: newHistory,
   };
 }
@@ -168,6 +206,8 @@ export function undo(state: MazeState): MazeState {
     movesLeft: lastState.movesLeft,
     // ✅ Ensure Set is not shared by reference
     collectedCoins: new Set(lastState.collectedCoins),
+    timeLeft: lastState.timeLeft ?? state.timeLeft,
+    lastMoveIcy: lastState.lastMoveIcy ?? false,
     history: newHistory,
     status: 'playing',
   };
@@ -193,6 +233,16 @@ export function gameReducer(state: MazeState, action: GameAction): MazeState {
 
     case 'RESTART':
       return restart(state);
+
+    case 'TICK': {
+      if (state.status !== 'playing') return state;
+      if (state.timeLeft === null) return state;
+      const nextTime = Math.max(0, state.timeLeft - action.seconds);
+      if (nextTime <= 0) {
+        return { ...state, timeLeft: nextTime, status: 'lost' };
+      }
+      return { ...state, timeLeft: nextTime };
+    }
 
     case 'NEXT_LEVEL':
       return createLevel(Math.min(state.level + 1, MAX_LEVEL));
