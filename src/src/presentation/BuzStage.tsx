@@ -8,6 +8,7 @@ import { MazeGrid } from './MazeGrid';
 interface BuzStageProps {
   gameState: MazeState;
   onPause: () => void;
+  onRestart: () => void;
   onMenuReturn: () => void;
   mazeScale: number;
   mazeSlotRef: RefObject<HTMLDivElement>;
@@ -58,7 +59,7 @@ function SnowOverlay() {
   );
 }
 
-export function BuzStage({ gameState, onPause, onMenuReturn, mazeScale, mazeSlotRef }: BuzStageProps) {
+export function BuzStage({ gameState, onPause, onRestart, onMenuReturn, mazeScale, mazeSlotRef }: BuzStageProps) {
   return (
     <div className="min-h-dvh w-full relative overflow-hidden">
       {/* background layers (winter cave vibe, low cost) */}
@@ -215,19 +216,34 @@ export function BuzStage({ gameState, onPause, onMenuReturn, mazeScale, mazeSlot
                 <div className="text-2xl font-black tabular-nums">{gameState.movesLeft}</div>
               </motion.div>
 
-              <button
-                onClick={onPause}
-                className="rounded-full text-base font-black text-white transition-all flex items-center justify-center"
-                style={{
-                  width: '90.29px',
-                  height: '41.6px',
-                  background: 'linear-gradient(180deg, rgba(84, 72, 130, 0.95) 0%, rgba(60, 52, 98, 0.95) 100%)',
-                  boxShadow:
-                    '0 12px 26px rgba(22, 15, 60, 0.45), inset 0 1px 0 rgba(255,255,255,0.15)',
-                }}
-              >
-                Duraklat
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onPause}
+                  className="rounded-full text-base font-black text-white transition-all flex items-center justify-center"
+                  style={{
+                    width: '90.29px',
+                    height: '41.6px',
+                    background: 'linear-gradient(180deg, rgba(84, 72, 130, 0.95) 0%, rgba(60, 52, 98, 0.95) 100%)',
+                    boxShadow:
+                      '0 12px 26px rgba(22, 15, 60, 0.45), inset 0 1px 0 rgba(255,255,255,0.15)',
+                  }}
+                >
+                  Duraklat
+                </button>
+                <button
+                  onClick={onRestart}
+                  className="rounded-full text-base font-black text-white transition-all flex items-center justify-center"
+                  style={{
+                    width: '90.29px',
+                    height: '41.6px',
+                    background: 'linear-gradient(180deg, rgba(46, 98, 130, 0.9) 0%, rgba(32, 70, 98, 0.92) 100%)',
+                    boxShadow:
+                      '0 12px 26px rgba(22, 15, 60, 0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+                  }}
+                >
+                  Yeniden Başla
+                </button>
+              </div>
             </div>
 
             <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">

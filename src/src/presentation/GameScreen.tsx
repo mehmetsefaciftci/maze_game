@@ -291,6 +291,10 @@ export function GameScreen() {
   };
 
   const handleRestart = () => dispatch({ type: 'RESTART' });
+  const handleRestartLevel = () => {
+    setPaused(false);
+    dispatch({ type: 'RESTART' });
+  };
   const handleNextLevel = () => {
     if (isFinalLevel) return;
     dispatch({ type: 'NEXT_LEVEL' });
@@ -416,6 +420,16 @@ export function GameScreen() {
         </>
       )}
 
+      {/* Kum stage background (levels only) */}
+      {screen === 'game' && currentStage === 'kum' && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "url('/stages/kum-bg.png') center / cover no-repeat",
+          }}
+        />
+      )}
+
       {/* AUTH */}
       {screen === 'auth' ? (
         <div className="flex-1 flex items-center justify-center p-4 relative z-10">
@@ -456,6 +470,7 @@ export function GameScreen() {
             <BuzStage
               gameState={state}
               onPause={handlePauseToggle}
+              onRestart={handleRestartLevel}
               onMenuReturn={handleMenuReturn}
               mazeScale={mazeScale}
               mazeSlotRef={mazeSlotRef}
@@ -464,6 +479,7 @@ export function GameScreen() {
             <ToprakStage
               gameState={state}
               onPause={handlePauseToggle}
+              onRestart={handleRestartLevel}
               mazeScale={mazeScale}
               mazeSlotRef={mazeSlotRef}
             />
@@ -507,12 +523,20 @@ export function GameScreen() {
                       <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
                     </motion.div>
 
-                    <button
-                      onClick={handlePauseToggle}
-                      className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
-                    >
-                      Duraklat
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handlePauseToggle}
+                        className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                      >
+                        Duraklat
+                      </button>
+                      <button
+                        onClick={handleRestartLevel}
+                        className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                      >
+                        Yeniden Başla
+                      </button>
+                    </div>
                   </div>
 
                   <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">

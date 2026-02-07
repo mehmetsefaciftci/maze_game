@@ -76,10 +76,10 @@ export const MazeGrid = memo(function MazeGrid({
       wallImage: "url('/stages/toprak-wall.jpg')",
     },
     kum: {
-      grid: 'rounded-2xl bg-gradient-to-br from-amber-900/70 to-orange-900/80 border-amber-500/30',
-      wall: 'bg-gradient-to-br from-amber-300 via-orange-500 to-yellow-600 border border-amber-200/50',
-      wallShadow: 'inset 0 -2px 4px rgba(0,0,0,0.35), inset 0 2px 4px rgba(255,255,255,0.2)',
-      path: 'bg-amber-950/40 border border-amber-800/30',
+      grid: 'rounded-2xl bg-gradient-to-br from-[#6b4b2a]/70 via-[#7b5a34]/70 to-[#5a3f24]/80 border-[#d8b37a]/30',
+      wall: 'bg-gradient-to-br from-[#b87925] via-[#a86a1c] to-[#8a5311] border border-[#f2c97a]/70',
+      wallShadow: 'inset 0 -3px 6px rgba(0,0,0,0.45), inset 0 2px 6px rgba(255,255,255,0.18)',
+      path: 'bg-gradient-to-br from-[#d5b178]/30 via-[#c79b5d]/24 to-[#a7733f]/30 border border-[#f2d5a2]/30 backdrop-blur-[1px]',
     },
     volkan: {
       grid: 'rounded-2xl bg-gradient-to-br from-zinc-950/80 to-red-950/80 border-red-500/30',
