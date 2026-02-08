@@ -465,11 +465,16 @@ export function getLevelConfig(level: number): LevelParams {
   const stage = getStageTheme(level);
   const gridSize = stage === 'buz' ? 6 : (special?.gridSize ?? cappedSize);
 
-  const complexity = Math.min(0.35 + level * 0.06, 0.9);
+  const complexity =
+    level === 20
+      ? 0.9
+      : Math.min(0.35 + level * 0.06, 0.9);
 
   let seed: number;
   if (level === 3) {
     seed = 1050;
+  } else if (level === 20) {
+    seed = 2020;
   } else {
     seed = special ? special.seed : 1000 + level * 7;
   }
