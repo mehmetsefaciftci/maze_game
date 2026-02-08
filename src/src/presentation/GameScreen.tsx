@@ -117,6 +117,7 @@ export function GameScreen() {
   const [volkanIntroOpen, setVolkanIntroOpen] = useState(false);
   const [buzIntroOpen, setBuzIntroOpen] = useState(false);
   const [buzIntroDismissed, setBuzIntroDismissed] = useState(false);
+  const [gezegenIntroOpen, setGezegenIntroOpen] = useState(false);
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
   const [mazeScale, setMazeScale] = useState(1);
   const prevKumLevelRef = useRef<number | null>(null);
@@ -125,6 +126,8 @@ export function GameScreen() {
   const prevVolkanHistoryLenRef = useRef<number>(0);
   const prevBuzLevelRef = useRef<number | null>(null);
   const prevBuzHistoryLenRef = useRef<number>(0);
+  const prevGezegenLevelRef = useRef<number | null>(null);
+  const prevGezegenHistoryLenRef = useRef<number>(0);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -271,6 +274,34 @@ export function GameScreen() {
   useEffect(() => {
     prevBuzLevelRef.current = state.level;
     prevBuzHistoryLenRef.current = state.history.length;
+  }, [state.level, state.history.length]);
+
+  // Gezegen stage intro (only on first enter or restart; not on auto-advance)
+  useEffect(() => {
+    if (screen !== 'game') {
+      setGezegenIntroOpen(false);
+      return;
+    }
+    const isFreshStart =
+      state.status === 'playing' && state.history.length === 0 && state.movesLeft === state.maxMoves;
+    if (currentStage !== 'gezegen' || !isFreshStart) {
+      setGezegenIntroOpen(false);
+      return;
+    }
+    const prevLevel = prevGezegenLevelRef.current;
+    const prevHistoryLen = prevGezegenHistoryLenRef.current;
+    const isFirstEnter = prevLevel !== state.level;
+    const isRestart = prevLevel === state.level && prevHistoryLen > 0;
+    if (isFirstEnter || isRestart) {
+      setGezegenIntroOpen(true);
+      return;
+    }
+    setGezegenIntroOpen(false);
+  }, [screen, currentStage, state.status, state.history.length, state.movesLeft, state.maxMoves, state.level]);
+
+  useEffect(() => {
+    prevGezegenLevelRef.current = state.level;
+    prevGezegenHistoryLenRef.current = state.history.length;
   }, [state.level, state.history.length]);
 
   // Boot: load logged user (if exists)
@@ -687,6 +718,47 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
+          {gezegenIntroOpen &&
+            currentStage === 'gezegen' &&
+            createPortal(
+              <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 2147483647 }}>
+                <div
+                  className="w-full max-w-[92%] sm:max-w-[420px] rounded-2xl p-5 text-white shadow-2xl"
+                  style={{
+                    backgroundColor: 'rgba(26, 16, 42, 0.94)',
+                    border: '1px solid rgba(120, 90, 180, 0.45)',
+                    boxShadow: '0 18px 40px rgba(0,0,0,0.5)',
+                    backgroundImage:
+                      'radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.35) 0, transparent 70%), radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,0.28) 0, transparent 70%), radial-gradient(1px 1px at 45% 65%, rgba(255,255,255,0.25) 0, transparent 70%)',
+                  }}
+                >
+                  <div className="font-black text-base" style={{ color: '#E6E0F0' }}>
+                    Gezegen Aşaması
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#E6E0F0' }}>
+                    Labirentteki coinleri topla, kapıları aç ve yolu tamamla.
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#E6E0F0' }}>
+                    Hamlelerini dikkatli kullan,{' '}
+                    <span style={{ color: '#f0e9ff', fontWeight: 900 }}>belirlenen hamle sayısı</span> içinde çıkışa ulaş.
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setGezegenIntroOpen(false)}
+                      className="w-full rounded-lg py-2 text-sm font-black"
+                      style={{
+                        backgroundColor: '#20133A',
+                        color: '#E6E0F0',
+                        border: '1px solid rgba(150, 120, 220, 0.6)',
+                      }}
+                    >
+                      Tamam
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
           {buzIntroOpen &&
             currentStage === 'buz' &&
             createPortal(
