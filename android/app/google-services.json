@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "758706611904",
+    "project_id": "mazegame-207db",
+    "storage_bucket": "mazegame-207db.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:758706611904:android:fbe19420ed6bc7dbbeaf25",
+        "android_client_info": {
+          "package_name": "com.labyrinth.mazegame"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVZabhQXwbdfnw76KMVwc_UsRNgjUfbw8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
