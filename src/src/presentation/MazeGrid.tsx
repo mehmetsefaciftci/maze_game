@@ -30,6 +30,15 @@ interface MazeGridProps {
   theme?: StageTheme;
 }
 
+// ✅ FIX: Theme token tipini sabitle (wallImage opsiyonel)
+type ThemeTokens = {
+  grid: string;
+  wall: string;
+  wallShadow: string;
+  path: string;
+  wallImage?: string;
+};
+
 export const MazeGrid = memo(function MazeGrid({
   grid,
   playerPos,
@@ -59,7 +68,9 @@ export const MazeGrid = memo(function MazeGrid({
   const cellSizeClass = 'w-6 h-6';
   const gapClass = 'gap-0.5';
 
-  const themeTokens = {
+  // ✅ FIX: themeTokens'ı Record<StageTheme, ThemeTokens> olarak tipleyerek
+  // wallImage hatasını kaldırıyoruz.
+  const themeTokens: Record<StageTheme, ThemeTokens> = {
     gezegen: {
       grid: 'rounded-2xl bg-gradient-to-br from-indigo-900/80 to-purple-900/80 border-purple-500/30',
       wall: 'bg-gradient-to-br from-blue-500 via-purple-600 to-pink-600 border border-purple-400/50',
@@ -104,10 +115,13 @@ export const MazeGrid = memo(function MazeGrid({
         'inset 0 -5px 14px rgba(0,0,0,0.75), inset 0 3px 16px rgba(255,70,0,0.75), 0 0 28px rgba(255, 30, 0, 0.75)',
       path: 'bg-gradient-to-br from-[#2a0707]/94 via-[#3a0b0b]/92 to-[#5a160f]/94 border border-[#c0261a]/75',
     },
-  } as const;
+  };
 
   const themeKey: ThemeKey = theme === 'ice' || theme === 'default' ? 'gezegen' : theme;
+
+  // ✅ FIX: activeTheme artık ThemeTokens tipinde (wallImage? var)
   const activeTheme = themeTokens[theme];
+
   const wallClass = activeTheme.wall + (themeKey === 'volkan' ? ' volkan-wall' : '');
   const pathClass = activeTheme.path + (themeKey === 'volkan' ? ' volkan-path' : '');
   const isVolkan = themeKey === 'volkan';
@@ -434,24 +448,15 @@ const MazeCell = memo(function MazeCell({
         style={{
           boxShadow: wallShadow,
           backgroundImage: wallImage,
-
-          // ✅ FIX: tek backgroundSize (duplicate yok)
           backgroundSize: isVolkan ? '200% 200%' : wallImage ? 'cover' : undefined,
-
-          // volkan'da da güzel dursun
-          backgroundPosition: (isVolkan || wallImage) ? 'center' : undefined,
-
+          backgroundPosition: isVolkan || wallImage ? 'center' : undefined,
           filter: isVolkan ? 'saturate(1.35) brightness(1.12)' : undefined,
-
           outline: isLavaWarning ? '1px solid rgba(255, 140, 60, 0.8)' : undefined,
-
-          // ✅ Animation tek kaynaktan yönetiliyor
           animationName,
           animationDuration: isLavaWarning ? '0.35s' : isVolkan ? '2.2s' : undefined,
           animationTimingFunction: isLavaWarning ? 'linear' : isVolkan ? 'ease-in-out' : undefined,
-          animationIterationCount: (isLavaWarning || isVolkan) ? 'infinite' : undefined,
+          animationIterationCount: isLavaWarning || isVolkan ? 'infinite' : undefined,
           animationDirection: isVolkan && !isLavaWarning ? 'alternate' : undefined,
-
           ...sizeStyle,
         }}
         onClick={onClick}
@@ -470,21 +475,18 @@ const MazeCell = memo(function MazeCell({
         ...sizeStyle,
         backgroundSize: isVolkan ? '160% 160%' : undefined,
         filter: isVolkan ? 'saturate(1.08)' : undefined,
-
         border: isIceCell ? '1px solid rgba(140, 220, 255, 0.85)' : undefined,
         boxShadow: isIceCell ? 'inset 0 0 8px rgba(120, 200, 255, 0.6)' : undefined,
-
         outline: isLavaWarning ? '1px solid rgba(255, 140, 60, 0.8)' : undefined,
-
-        // ✅ Animation tek kaynaktan yönetiliyor
         animationName: pathAnimationName,
         animationDuration: isLavaWarning ? '0.35s' : isVolkan ? '3.6s' : undefined,
         animationTimingFunction: isLavaWarning ? 'linear' : isVolkan ? 'ease-in-out' : undefined,
-        animationIterationCount: (isLavaWarning || isVolkan) ? 'infinite' : undefined,
+        animationIterationCount: isLavaWarning || isVolkan ? 'infinite' : undefined,
         animationDirection: isVolkan && !isLavaWarning ? 'alternate' : undefined,
       }}
       onClick={onClick}
     >
+      {/* ... (Aşağıdaki geri kalan kodun tamamı sende zaten aynı; burada hiç dokunmadım) */}
       {isIceCell && (
         <>
           <span
@@ -572,25 +574,27 @@ interface StaticGridProps {
   warnLavaRow?: number | null;
 }
 
-const StaticGrid = memo(function StaticGrid({
-  grid,
-  cellSizeClass,
-  wallClass,
-  wallShadow,
-  wallImage,
-  pathClass,
-  themeKey,
-  cellPx,
-  isVolkan,
-  icyCells,
-  soilVisits,
-  sandStormActive,
-  playerPos,
-  sandCheckpoint,
-  sandRevealActive,
-  lavaRow,
-  warnLavaRow,
-}: StaticGridProps) {
+const StaticGrid = memo(function StaticGrid(props: StaticGridProps) {
+  const {
+    grid,
+    cellSizeClass,
+    wallClass,
+    wallShadow,
+    wallImage,
+    pathClass,
+    themeKey,
+    cellPx,
+    isVolkan,
+    icyCells,
+    soilVisits,
+    sandStormActive,
+    playerPos,
+    sandCheckpoint,
+    sandRevealActive,
+    lavaRow,
+    warnLavaRow,
+  } = props;
+
   const canUseDom = typeof document !== 'undefined';
   return (
     <>
@@ -630,8 +634,7 @@ const StaticGrid = memo(function StaticGrid({
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
           const isIceCell = icyCells?.has(`${x},${y}`) ?? false;
 
-          const isCracked =
-            themeKey === 'toprak' && (soilVisits?.get(`${x},${y}`) ?? 0) === 2;
+          const isCracked = themeKey === 'toprak' && (soilVisits?.get(`${x},${y}`) ?? 0) === 2;
 
           return (
             <MazeCell
@@ -667,7 +670,6 @@ const StaticGrid = memo(function StaticGrid({
               isCracked={isVisible ? isCracked : false}
               isCheckpoint={isCheckpoint}
               isLavaWarning={isLavaWarning}
-              // prod'da istersen kaldırırız
               onClick={() => console.log('cell', { x, y })}
             />
           );
@@ -717,8 +719,7 @@ function getCellFx(themeKey: ThemeKey, kind: 'wall' | 'path') {
         <span
           className="absolute inset-0 opacity-40"
           style={{
-            backgroundImage:
-              'radial-gradient(120% 120% at 50% 50%, rgba(255,255,255,0.2) 0, transparent 55%)',
+            backgroundImage: 'radial-gradient(120% 120% at 50% 50%, rgba(255,255,255,0.2) 0, transparent 55%)',
           }}
         />
       );
