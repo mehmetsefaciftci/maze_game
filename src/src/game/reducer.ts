@@ -10,9 +10,7 @@ import { getStageTheme, toStageLocalLevel } from './stage';
 
 function getIceTimeLimit(level: number): number | null {
   if (getStageTheme(level) !== 'buz') return null;
-  const localLevel = toStageLocalLevel(level); // 1..50
-  const time = Math.round(60 - (localLevel - 1) * 0.4);
-  return Math.max(35, time);
+  return 60;
 }
 
 /**

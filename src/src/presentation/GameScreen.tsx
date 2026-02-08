@@ -21,7 +21,7 @@ import { motion } from 'motion/react';
 import { Coins } from 'lucide-react';
 import { gameReducer, createLevel } from '../game/reducer';
 import { getGridForRender, canUndo, getProgress } from '../game/selectors';
-import { type Direction, MAX_LEVEL } from '../game/types';
+import { type Direction, MAX_LEVEL, type GameStatus } from '../game/types';
 import { THEMES, THEME_KEYS, getThemeForLevel, type ThemeKey } from '../themes';
 import { useTheme } from '../themes/ThemeProvider';
 import { MazeGrid } from './MazeGrid';
@@ -118,6 +118,9 @@ export function GameScreen() {
   const [buzIntroOpen, setBuzIntroOpen] = useState(false);
   const [buzIntroDismissed, setBuzIntroDismissed] = useState(false);
   const [gezegenIntroOpen, setGezegenIntroOpen] = useState(false);
+  const [resultStatus, setResultStatus] = useState<GameStatus>('playing');
+  const [inputLocked, setInputLocked] = useState(false);
+  const inputLockTimer = useRef<number | null>(null);
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
   const [mazeScale, setMazeScale] = useState(1);
   const prevKumLevelRef = useRef<number | null>(null);
@@ -138,7 +141,7 @@ export function GameScreen() {
   const grid = useMemo(() => getGridForRender(state), [state]);
   const canUndoMove = useMemo(() => canUndo(state), [state]);
   const progress = useMemo(() => getProgress(state), [state]);
-  const isGameActive = screen === 'game' && state.status === 'playing' && !paused;
+  const isGameActive = screen === 'game' && state.status === 'playing' && !paused && !inputLocked;
   const isFinalLevel = state.level >= MAX_LEVEL;
   const currentStage = useMemo(() => getThemeForLevel(state.level), [state.level]);
   const isIceStage = currentStage === 'buz';
@@ -552,6 +555,49 @@ export function GameScreen() {
   );
   const selectedStageRangeText = `Bölüm 1-${selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1}`;
   const theme = THEMES[activeThemeKey];
+
+  useEffect(() => {
+    if (state.status === 'playing') {
+      setResultStatus('playing');
+      return;
+    }
+    if (currentStage === 'buz' && state.status === 'won' && state.lastMoveIcy) {
+      const id = window.setTimeout(() => setResultStatus(state.status), 1300);
+      return () => window.clearTimeout(id);
+    }
+    setResultStatus(state.status);
+  }, [state.status, currentStage, state.lastMoveIcy]);
+
+  useEffect(() => {
+    if (screen !== 'game') return;
+    if (state.status !== 'playing') return;
+    if (inputLockTimer.current) {
+      window.clearTimeout(inputLockTimer.current);
+      inputLockTimer.current = null;
+    }
+    if (state.history.length === 0) return;
+    const lockMs = currentStage === 'buz' && state.lastMoveIcy ? 650 : 120;
+    setInputLocked(true);
+    inputLockTimer.current = window.setTimeout(() => {
+      setInputLocked(false);
+      inputLockTimer.current = null;
+    }, lockMs);
+    return () => {
+      if (inputLockTimer.current) {
+        window.clearTimeout(inputLockTimer.current);
+        inputLockTimer.current = null;
+      }
+    };
+  }, [screen, state.status, state.history.length, currentStage, state.lastMoveIcy]);
+
+  useEffect(() => {
+    if (screen === 'game' && !paused) return;
+    if (inputLockTimer.current) {
+      window.clearTimeout(inputLockTimer.current);
+      inputLockTimer.current = null;
+    }
+    setInputLocked(false);
+  }, [screen, paused]);
 
   return (
     <div
@@ -1023,7 +1069,7 @@ export function GameScreen() {
           )}
 
           <ResultDialog
-            status={state.status}
+            status={resultStatus}
             level={state.level}
             movesUsed={movesUsed}
             isFinalLevel={isFinalLevel}

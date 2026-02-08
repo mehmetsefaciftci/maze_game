@@ -112,7 +112,11 @@ export const MazeGrid = memo(function MazeGrid({
   const pathClass = activeTheme.path + (themeKey === 'volkan' ? ' volkan-path' : '');
   const isVolkan = themeKey === 'volkan';
   const isPlayerOnIce = icyCells?.has(`${playerPos.x},${playerPos.y}`) ?? false;
-  const shouldSlowMove = Boolean(lastMoveIcy);
+  const isTouchDevice = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }, []);
+  const shouldSlowMove = Boolean(lastMoveIcy) && !isTouchDevice;
   const warnLavaRow =
     isVolkan && typeof lavaRow === 'number' && lavaRow < (grid.height - 1) && (lavaMoveCounter ?? 0) >= 2
       ? lavaRow + 1
