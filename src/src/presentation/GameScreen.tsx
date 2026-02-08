@@ -178,18 +178,20 @@ export function GameScreen() {
     if (themeKey !== activeThemeKey) setTheme(activeThemeKey);
   }, [activeThemeKey, setTheme, themeKey]);
 
-  // Kum stage intro (show every time kum stage opens)
+  // Kum stage intro (show every time kum stage opens or restarts)
   useEffect(() => {
     if (screen !== 'game') {
       setKumIntroOpen(false);
       return;
     }
-    if (currentStage === 'kum') {
+    const isFreshStart =
+      state.status === 'playing' && state.history.length === 0 && state.movesLeft === state.maxMoves;
+    if (currentStage === 'kum' && isFreshStart) {
       setKumIntroOpen(true);
       return;
     }
     setKumIntroOpen(false);
-  }, [screen, currentStage]);
+  }, [screen, currentStage, state.status, state.history.length, state.movesLeft, state.maxMoves]);
 
   // Boot: load logged user (if exists)
   useEffect(() => {
