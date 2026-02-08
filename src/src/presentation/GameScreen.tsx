@@ -1014,8 +1014,18 @@ export function GameScreen() {
             createPortal(
               <>
                 <div
-                  className="fixed inset-0 bg-black/70"
-                  style={{ zIndex: 2147483646, position: 'fixed', inset: 0 }}
+                  className="fixed inset-0"
+                  aria-hidden="true"
+                  data-testid="pause-overlay"
+                  data-overlay="pause"
+                  role="presentation"
+                  style={{
+                    zIndex: 2147483646,
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(18,18,18,0.74)',
+                    backdropFilter: 'blur(2px)',
+                  }}
                 />
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -1024,21 +1034,50 @@ export function GameScreen() {
                   className="fixed inset-0 flex items-center justify-center p-4"
                   style={{ zIndex: 2147483647, position: 'fixed', inset: 0 }}
                 >
-                  <div className="w-full max-w-[260px] text-center">
-                    <div className="relative rounded-3xl px-5 pt-5 pb-4 bg-gradient-to-b from-fuchsia-600 via-pink-500 to-orange-400 shadow-[0_22px_60px_rgba(0,0,0,0.5)] border border-white/25">
-                      <div className="text-white font-black text-xl tracking-tight">Duraklatıldı</div>
-                      <div className="text-white/80 text-xs mt-1">Kaldığın yerden devam edebilirsin.</div>
+                  <div className="w-full max-w-[280px] text-center">
+                    <div
+                      className="relative px-5 pt-5 pb-4 border"
+                      style={{
+                        backgroundColor: '#202020',
+                        borderColor: '#2a2a2a',
+                        borderRadius: '14px',
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.45)',
+                      }}
+                    >
+                      <div className="text-[#e6e6e6] font-semibold text-base tracking-tight">Duraklatıldı</div>
+                      <div className="text-[#cfcfcf] text-[11px] mt-1">Kaldığın yerden devam edebilirsin.</div>
 
                       <div className="mt-4 grid grid-cols-1 gap-2">
                         <button
                           onClick={handleResume}
-                          className="py-2.5 rounded-2xl font-black text-purple-700 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.25)]"
+                          className="py-2.5 rounded-xl font-black"
+                          style={{
+                            backgroundColor: '#f2f2f2',
+                            color: '#2b2b2b',
+                            boxShadow: '0 8px 18px rgba(0,0,0,0.22)',
+                          }}
                         >
                           Devam Et
                         </button>
                         <button
+                          onClick={handleRestartLevel}
+                          className="py-2.5 rounded-xl font-bold"
+                          style={{
+                            backgroundColor: '#d0d3d8',
+                            color: '#2f2f2f',
+                            border: '1px solid #b0b6bc',
+                          }}
+                        >
+                          Yeniden Başla
+                        </button>
+                        <button
                           onClick={handlePauseMenu}
-                          className="py-2.5 rounded-2xl font-black text-white bg-white/15 border border-white/30 shadow-[0_8px_20px_rgba(0,0,0,0.22)]"
+                          className="py-2.5 rounded-xl font-bold"
+                          style={{
+                            backgroundColor: '#e0c9c9',
+                            color: '#3a2e2e',
+                            border: '1px solid #c2aaaa',
+                          }}
                         >
                           Menüye Dön
                         </button>
