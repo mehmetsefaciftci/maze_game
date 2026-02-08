@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Maze game mobile design</string>
+    <string name="title_activity_main">Maze game mobile design</string>
+    <string name="package_name">com.labyrinth.mazegame</string>
+    <string name="custom_url_scheme">com.labyrinth.mazegame</string>
+</resources>
