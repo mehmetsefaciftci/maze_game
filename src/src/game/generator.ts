@@ -267,6 +267,7 @@ export function generateMaze(params: LevelParams): {
   coins: Coin[];
   doors: Door[];
   icyCells: Set<string>;
+  sandCheckpoint: string | null;
 } {
   const { gridSize, seed } = params;
   const rng = new SeededRandom(seed);
@@ -395,7 +396,6 @@ export function generateMaze(params: LevelParams): {
     rng,
     inferredLevel
   );
-
   return {
     grid: {
       width: gridWidth,
@@ -408,6 +408,15 @@ export function generateMaze(params: LevelParams): {
     coins,
     doors,
     icyCells,
+    sandCheckpoint: generateSandCheckpoint(
+      grid,
+      startPos,
+      exitPos,
+      coins,
+      doors,
+      rng,
+      inferredLevel
+    ),
   };
 }
 
@@ -1259,6 +1268,39 @@ function generateIcyCells(
 
   return selected;
 }
+
+function generateSandCheckpoint(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  coins: Coin[],
+  doors: Door[],
+  rng: SeededRandom,
+  level: number
+): string | null {
+  if (getStageTheme(level) !== 'kum') return null;
+
+  const blocked = new Set<string>();
+  blocked.add(`${startPos.x},${startPos.y}`);
+  blocked.add(`${exitPos.x},${exitPos.y}`);
+  for (const coin of coins) blocked.add(`${coin.position.x},${coin.position.y}`);
+  for (const door of doors) blocked.add(`${door.position.x},${door.position.y}`);
+
+  const candidates: Position[] = [];
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[0].length; x++) {
+      if (grid[y][x] !== 'path') continue;
+      const key = `${x},${y}`;
+      if (blocked.has(key)) continue;
+      candidates.push({ x, y });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  const pick = candidates[rng.nextInt(0, candidates.length)];
+  return `${pick.x},${pick.y}`;
+}
+
 
 function buildLevel69Grid(gridWidth: number, gridHeight: number): Grid {
   return buildSlideSnakeGrid(gridWidth, gridHeight);

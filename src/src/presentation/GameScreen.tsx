@@ -113,6 +113,7 @@ export function GameScreen() {
   const [stagePopupOpen, setStagePopupOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<StageKey>('gezegen');
   const [paused, setPaused] = useState(false);
+  const [kumIntroOpen, setKumIntroOpen] = useState(false);
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
   const [mazeScale, setMazeScale] = useState(1);
 
@@ -176,6 +177,19 @@ export function GameScreen() {
   useEffect(() => {
     if (themeKey !== activeThemeKey) setTheme(activeThemeKey);
   }, [activeThemeKey, setTheme, themeKey]);
+
+  // Kum stage intro (show every time kum stage opens)
+  useEffect(() => {
+    if (screen !== 'game') {
+      setKumIntroOpen(false);
+      return;
+    }
+    if (currentStage === 'kum') {
+      setKumIntroOpen(true);
+      return;
+    }
+    setKumIntroOpen(false);
+  }, [screen, currentStage]);
 
   // Boot: load logged user (if exists)
   useEffect(() => {
@@ -284,6 +298,22 @@ export function GameScreen() {
 
     return () => window.clearInterval(id);
   }, [screen, currentStage, state.status, paused]);
+
+  // Sand storm reveal timer
+  useEffect(() => {
+    if (screen !== 'game') return;
+    if (currentStage !== 'kum') return;
+    if (state.status !== 'playing') return;
+    if (paused) return;
+    if (state.sandRevealSeconds <= 0) return;
+    if (state.sandRevealSeconds >= 999) return;
+
+    const id = window.setInterval(() => {
+      dispatch({ type: 'SAND_REVEAL_TICK', seconds: 0.1 });
+    }, 100);
+
+    return () => window.clearInterval(id);
+  }, [screen, currentStage, state.status, paused, state.sandRevealSeconds]);
 
   // Touch/swipe controls
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
@@ -404,10 +434,10 @@ export function GameScreen() {
       ].join(' ')}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-    >
-      {screen === 'game' && currentStage === 'volkan' && (
-        <style>
-          {`
+      >
+        {screen === 'game' && currentStage === 'volkan' && (
+          <style>
+            {`
           @keyframes volkanBgGlow {
             0% { opacity: 0.75; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.02); }
@@ -418,9 +448,19 @@ export function GameScreen() {
             100% { background-position: 100% 100%; }
           }
         `}
-        </style>
-      )}
-      {/* Animated background stars */}
+          </style>
+        )}
+        {screen === 'game' && currentStage === 'kum' && (
+          <style>
+            {`
+          @keyframes sandDust {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+          }
+        `}
+          </style>
+        )}
+        {/* Animated background stars */}
       {!(screen === 'game' && (isIceStage || isToprakStage)) && (
         <>
           <div
@@ -458,12 +498,31 @@ export function GameScreen() {
 
       {/* Kum stage background (levels only) */}
       {screen === 'game' && currentStage === 'kum' && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: "url('/stages/kum-bg.png') center / cover no-repeat",
-          }}
-        />
+        <>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "url('/stages/kum-bg.png') center / cover no-repeat",
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(120% 80% at 50% 0%, rgba(255, 230, 180, 0.18) 0%, transparent 60%), radial-gradient(120% 80% at 50% 100%, rgba(80, 50, 20, 0.35) 0%, transparent 60%)',
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(2px 2px at 20% 30%, rgba(255, 220, 180, 0.35) 0, transparent 60%), radial-gradient(2px 2px at 70% 40%, rgba(255, 200, 140, 0.3) 0, transparent 60%), radial-gradient(3px 3px at 45% 65%, rgba(255, 210, 160, 0.3) 0, transparent 60%), radial-gradient(2px 2px at 80% 75%, rgba(255, 230, 190, 0.3) 0, transparent 60%)',
+              backgroundSize: '220% 220%',
+              animation: 'sandDust 14s linear infinite',
+              opacity: 0.55,
+            }}
+          />
+        </>
       )}
 
       {/* Volkan stage background (levels only) */}
@@ -538,6 +597,47 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
+          {kumIntroOpen &&
+            currentStage === 'kum' &&
+            createPortal(
+              <div
+                className="fixed inset-0 flex items-center justify-center p-4"
+                style={{ zIndex: 2147483647 }}
+              >
+                <div
+                  className="w-full max-w-[92%] sm:max-w-[420px] rounded-2xl p-5 text-white shadow-2xl"
+                  style={{
+                    backgroundColor: '#7a5520',
+                    border: '1px solid #b88a3a',
+                    boxShadow: '0 18px 40px rgba(0,0,0,0.45)',
+                  }}
+                >
+                  <div className="font-black text-base" style={{ color: '#fff4db' }}>
+                    Kum Aşaması
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#fff8e9' }}>
+                    Kum fırtınası görüşünü kısıtlar. İlk adımı attıktan sonra labirentin tamamını göremezsin.
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#fff8e9' }}>
+                    Harita pusulalarını kullanarak yolu tekrar görebilir, doğru rotayı hatırlayarak ilerleyebilirsin.
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setKumIntroOpen(false)}
+                      className="w-full rounded-lg py-2 text-sm font-black"
+                      style={{
+                        backgroundColor: '#b88a3a',
+                        color: '#2b1606',
+                        border: '1px solid #e4bf6b',
+                      }}
+                    >
+                      Tamam
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
           {isIceStage ? (
             <BuzStage
               gameState={state}
@@ -640,6 +740,10 @@ export function GameScreen() {
                         collectedCoins={state.collectedCoins}
                         icyCells={state.icyCells}
                         lastMoveIcy={state.lastMoveIcy}
+                        soilVisits={state.soilVisits}
+                        sandStormActive={state.sandStormActive}
+                        sandCheckpoint={state.sandCheckpoint}
+                        sandRevealSeconds={state.sandRevealSeconds}
                         theme={currentStage}
                       />
                     </div>

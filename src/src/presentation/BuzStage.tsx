@@ -319,6 +319,7 @@ export function BuzStage({
                   collectedCoins={gameState.collectedCoins}
                   icyCells={gameState.icyCells}
                   lastMoveIcy={gameState.lastMoveIcy}
+                  sandStormActive={gameState.sandStormActive}
                   theme="buz"
                 />
               </div>

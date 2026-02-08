@@ -21,6 +21,10 @@ interface MazeGridProps {
   collectedCoins: Set<string>; // stores "x,y" of collected coins
   icyCells?: Set<string>;
   lastMoveIcy?: boolean;
+  soilVisits?: Map<string, number>;
+  sandStormActive?: boolean;
+  sandCheckpoint?: string | null;
+  sandRevealSeconds?: number;
   theme?: StageTheme;
 }
 
@@ -33,6 +37,10 @@ export const MazeGrid = memo(function MazeGrid({
   collectedCoins,
   icyCells,
   lastMoveIcy,
+  soilVisits,
+  sandStormActive,
+  sandCheckpoint,
+  sandRevealSeconds,
   theme = 'gezegen',
 }: MazeGridProps) {
   const height = grid.length;
@@ -101,6 +109,12 @@ export const MazeGrid = memo(function MazeGrid({
   const isVolkan = themeKey === 'volkan';
   const isPlayerOnIce = icyCells?.has(`${playerPos.x},${playerPos.y}`) ?? false;
   const shouldSlowMove = Boolean(lastMoveIcy);
+  const sandRevealActive = (sandRevealSeconds ?? 0) > 0;
+  const isKumFog = themeKey === 'kum' && sandStormActive && !sandRevealActive;
+  const isVisibleCell = (x: number, y: number) => {
+    if (!isKumFog) return true;
+    return Math.abs(x - playerPos.x) <= 1 && Math.abs(y - playerPos.y) <= 1;
+  };
   const wallShadow = activeTheme.wallShadow;
   const wallImage = activeTheme.wallImage;
 
@@ -128,6 +142,28 @@ export const MazeGrid = memo(function MazeGrid({
 
   return (
     <div className="relative inline-block">
+      {isKumFog && (
+        <>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'rgba(246, 226, 190, 0.12)',
+              borderRadius: '16px',
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(2px 2px at 20% 30%, rgba(255, 230, 180, 0.4) 0, transparent 60%), radial-gradient(2px 2px at 70% 40%, rgba(255, 210, 150, 0.35) 0, transparent 60%), radial-gradient(3px 3px at 45% 65%, rgba(255, 220, 170, 0.35) 0, transparent 60%), radial-gradient(2px 2px at 80% 75%, rgba(255, 235, 190, 0.35) 0, transparent 60%)',
+              backgroundSize: '220% 220%',
+              animation: 'sandStormDust 14s linear infinite',
+              opacity: 0.55,
+              borderRadius: '16px',
+            }}
+          />
+        </>
+      )}
       <div
         className={[
           'relative inline-grid backdrop-blur-sm shadow-2xl border-2 z-0',
@@ -150,12 +186,18 @@ export const MazeGrid = memo(function MazeGrid({
           cellPx={cellPx}
           isVolkan={isVolkan}
           icyCells={icyCells}
+          soilVisits={soilVisits}
+          sandStormActive={isKumFog}
+          playerPos={playerPos}
+          sandCheckpoint={sandCheckpoint}
+          sandRevealActive={sandRevealActive}
         />
 
         {/* Coins */}
         {coins.map((coin) => {
           const coinKey = `${coin.position.x},${coin.position.y}`;
           if (collectedCoins.has(coinKey)) return null;
+          if (!isVisibleCell(coin.position.x, coin.position.y)) return null;
 
           const colors = getColorClasses(coin.color);
 
@@ -192,6 +234,7 @@ export const MazeGrid = memo(function MazeGrid({
 
           const colors = getColorClasses(door.color);
           const doorKey = `${door.position.x},${door.position.y}`;
+          if (!isVisibleCell(door.position.x, door.position.y)) return null;
 
           return (
             <motion.div
@@ -252,14 +295,16 @@ export const MazeGrid = memo(function MazeGrid({
           }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         >
-          <motion.div
-            className="bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-green-200"
-            style={{ width: cellPx * 0.7, height: cellPx * 0.7, boxShadow: '0 0 15px rgba(52, 211, 153, 0.8)' }}
-            animate={{ scale: [1, 1.15, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity, repeatType: 'reverse' }}
-          >
-            <Flag className="text-white" strokeWidth={3} fill="white" style={{ width: cellPx * 0.35, height: cellPx * 0.35 }} />
-          </motion.div>
+          {isVisibleCell(exitPos.x, exitPos.y) && (
+            <motion.div
+              className="bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-green-200"
+              style={{ width: cellPx * 0.7, height: cellPx * 0.7, boxShadow: '0 0 15px rgba(52, 211, 153, 0.8)' }}
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, repeatType: 'reverse' }}
+            >
+              <Flag className="text-white" strokeWidth={3} fill="white" style={{ width: cellPx * 0.35, height: cellPx * 0.35 }} />
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Player */}
@@ -314,6 +359,16 @@ export const MazeGrid = memo(function MazeGrid({
           </motion.div>
         </motion.div>
       </div>
+      {isKumFog && (
+        <style>
+          {`
+          @keyframes sandStormDust {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+          }
+        `}
+        </style>
+      )}
     </div>
   );
 });
@@ -330,6 +385,8 @@ interface MazeCellProps {
   cellPx: number;
   isVolkan?: boolean;
   isIceCell?: boolean;
+  isCracked?: boolean;
+  isCheckpoint?: boolean;
 }
 
 const MazeCell = memo(function MazeCell({
@@ -344,6 +401,8 @@ const MazeCell = memo(function MazeCell({
   cellPx,
   isVolkan,
   isIceCell,
+  isCracked,
+  isCheckpoint,
 }: MazeCellProps) {
   const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150 relative overflow-hidden`;
   const sizeStyle = cellSizeClass ? undefined : { width: cellPx, height: cellPx };
@@ -402,6 +461,47 @@ const MazeCell = memo(function MazeCell({
           />
         </>
       )}
+      {isCracked && (
+        <span
+          className="absolute inset-0 opacity-65"
+          style={{
+            backgroundImage:
+              'linear-gradient(160deg, rgba(255,255,255,0.2) 0%, transparent 35%, rgba(0,0,0,0.25) 65%, transparent 100%), linear-gradient(20deg, rgba(0,0,0,0.2) 0%, transparent 40%, rgba(255,255,255,0.2) 70%, transparent 100%), radial-gradient(2px 2px at 30% 35%, rgba(255,255,255,0.35) 0, transparent 60%), radial-gradient(2px 2px at 70% 55%, rgba(0,0,0,0.3) 0, transparent 60%)',
+          }}
+        />
+      )}
+      {isCheckpoint && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span
+            style={{
+              width: cellPx * 0.5,
+              height: cellPx * 0.5,
+              borderRadius: 999,
+              background: 'rgba(255, 240, 200, 0.95)',
+              boxShadow: '0 0 12px rgba(255, 230, 160, 0.85)',
+              border: '1px solid rgba(120, 80, 30, 0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width={cellPx * 0.32}
+              height={cellPx * 0.32}
+              fill="none"
+              stroke="#5a3a1f"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7l2.5 5-2.5 5-2.5-5z" fill="#5a3a1f" />
+              <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+            </svg>
+          </span>
+        </span>
+      )}
       {cellFx}
     </div>
   );
@@ -418,6 +518,11 @@ interface StaticGridProps {
   cellPx: number;
   isVolkan?: boolean;
   icyCells?: Set<string>;
+  soilVisits?: Map<string, number>;
+  sandStormActive?: boolean;
+  playerPos?: Position;
+  sandCheckpoint?: string | null;
+  sandRevealActive?: boolean;
 }
 
 const StaticGrid = memo(function StaticGrid({
@@ -431,6 +536,11 @@ const StaticGrid = memo(function StaticGrid({
   cellPx,
   isVolkan,
   icyCells,
+  soilVisits,
+  sandStormActive,
+  playerPos,
+  sandCheckpoint,
+  sandRevealActive,
 }: StaticGridProps) {
   const canUseDom = typeof document !== 'undefined';
   return (
@@ -451,21 +561,30 @@ const StaticGrid = memo(function StaticGrid({
       )}
       {grid.map((row, y) =>
         row.map((cell, x) => {
+          const isVisible =
+            !sandStormActive ||
+            sandRevealActive ||
+            (playerPos && Math.abs(x - playerPos.x) <= 1 && Math.abs(y - playerPos.y) <= 1);
+          const isCheckpoint = isVisible && sandCheckpoint === `${x},${y}`;
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
           const isIceCell = icyCells?.has(`${x},${y}`) ?? false;
+          const isCracked =
+            themeKey === 'toprak' && (soilVisits?.get(`${x},${y}`) ?? 0) === 2;
           return (
             <MazeCell
               key={`${x}-${y}`}
-              type={cellType}
+              type={isVisible ? cellType : 'path'}
               cellSizeClass={cellSizeClass}
-              wallClass={wallClass}
-              wallShadow={wallShadow}
-              wallImage={wallImage}
-              pathClass={pathClass}
+              wallClass={isVisible ? wallClass : 'bg-black/60'}
+              wallShadow={isVisible ? wallShadow : 'none'}
+              wallImage={isVisible ? wallImage : undefined}
+              pathClass={isVisible ? pathClass : 'bg-black/50'}
               themeKey={themeKey}
               cellPx={cellPx}
               isVolkan={isVolkan}
-              isIceCell={isIceCell}
+              isIceCell={isVisible ? isIceCell : false}
+              isCracked={isVisible ? isCracked : false}
+              isCheckpoint={isCheckpoint}
               // prod'da istersen kaldırırız
               onClick={() => console.log('cell', { x, y })}
             />

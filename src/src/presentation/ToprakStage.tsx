@@ -1,6 +1,8 @@
 import type { RefObject } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { Coins } from 'lucide-react';
+import { Coins, Mountain } from 'lucide-react';
 import type { MazeState } from '../game/types';
 import { MazeGrid } from './MazeGrid';
 
@@ -24,6 +26,20 @@ export function ToprakStage({
   mazeScale,
   mazeSlotRef,
 }: ToprakStageProps) {
+  const [showIntro, setShowIntro] = useState(false);
+
+  useEffect(() => {
+    const key = 'maze_toprak_intro_seen_v4';
+    if (window.localStorage.getItem(key)) return;
+    setShowIntro(true);
+  }, []);
+
+  const handleCloseIntro = () => {
+    const key = 'maze_toprak_intro_seen_v4';
+    window.localStorage.setItem(key, '1');
+    setShowIntro(false);
+  };
+
   return (
     <div className="min-h-dvh w-full relative overflow-hidden">
       <div
@@ -41,6 +57,53 @@ export function ToprakStage({
       />
 
       <div className="relative z-10 flex flex-col min-h-dvh">
+        {showIntro &&
+          createPortal(
+            <div
+              className="fixed inset-0 flex items-center justify-center p-4"
+              style={{ zIndex: 2147483647, position: 'fixed', pointerEvents: 'auto', isolation: 'isolate' }}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="w-full max-w-[92%] sm:max-w-[420px] rounded-2xl p-5 text-white shadow-2xl"
+                style={{
+                  backgroundColor: '#2b1606',
+                  border: '1px solid #3a1f10',
+                  boxShadow: '0 18px 40px rgba(0,0,0,0.45)',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: '#5a3a1f' }}
+                  >
+                    <Mountain className="w-5 h-5" style={{ color: '#fff1d6' }} />
+                  </div>
+                  <div className="font-black text-base" style={{ color: '#fff1d6' }}>
+                    Toprak Aşaması
+                  </div>
+                </div>
+                <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#fff7e6' }}>
+                  Toprak zemin aşınır. Aynı yerden çok geçersen çökebilir.
+                </div>
+                <div className="mt-3">
+                  <button
+                    onClick={handleCloseIntro}
+                    className="w-full rounded-lg py-2 text-sm font-black"
+                    style={{
+                      backgroundColor: '#6b3a1c',
+                      color: '#fff1d6',
+                      border: '1px solid #8b5e34',
+                    }}
+                  >
+                    Tamam
+                  </button>
+                </div>
+              </motion.div>
+            </div>,
+            document.body
+          )}
         <div className="px-4 py-4">
           <div className="relative z-10 max-w-md mx-auto space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -150,6 +213,7 @@ export function ToprakStage({
                   coins={gameState.coins}
                   doors={gameState.doors}
                   collectedCoins={gameState.collectedCoins}
+                  soilVisits={gameState.soilVisits}
                   theme="toprak"
                 />
               </div>

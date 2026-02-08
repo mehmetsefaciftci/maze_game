@@ -24,7 +24,8 @@ export function createLevel(level: number, seed?: number): MazeState {
     config.seed = seed;
   }
 
-  const { grid, startPos, exitPos, solutionLength, coins, doors, icyCells } = generateMaze(config);
+  const { grid, startPos, exitPos, solutionLength, coins, doors, icyCells, sandCheckpoint } =
+    generateMaze(config);
   const maxMoves = calculateMoveLimit(solutionLength, level);
   const maxTime = getIceTimeLimit(level);
 
@@ -36,6 +37,10 @@ export function createLevel(level: number, seed?: number): MazeState {
     coins,
     doors,
     icyCells,
+    soilVisits: new Map(),
+    sandStormActive: false,
+    sandCheckpoint,
+    sandRevealSeconds: 0,
     collectedCoins: new Set(),
     movesLeft: maxMoves,
     maxMoves,
@@ -61,6 +66,23 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
   let currentPos = state.playerPos;
   let lastValidPos = currentPos;
   let touchedIce = false;
+  let activeDirection: Direction = direction;
+  const stageTheme = getStageTheme(state.level);
+  const isToprakStage = stageTheme === 'toprak';
+  const isKumStage = stageTheme === 'kum';
+  const nextSandStormActive = isKumStage ? true : state.sandStormActive;
+  let sandRevealSeconds = state.sandRevealSeconds;
+  const protectedSoil = isToprakStage
+    ? new Set([
+        `${state.playerPos.x},${state.playerPos.y}`,
+        `${state.exitPos.x},${state.exitPos.y}`,
+        ...state.coins.map((c) => `${c.position.x},${c.position.y}`),
+        ...state.doors.map((d) => `${d.position.x},${d.position.y}`),
+      ])
+    : null;
+  let soilVisits = state.soilVisits;
+  let soilUpdated = false;
+  let collapsePositions: Position[] = [];
 
   // ✅ Copy Set so we never mutate state.collectedCoins reference
   let newCollectedCoins = new Set(state.collectedCoins);
@@ -69,7 +91,7 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
   const coinsCollectedDuringSlide: string[] = [];
 
   while (true) {
-    const nextPos = getNewPosition(currentPos, direction);
+    const nextPos = getNewPosition(currentPos, activeDirection);
 
     // Check boundaries
     if (!isValidPosition(nextPos, state.grid)) {
@@ -98,6 +120,31 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     if (state.icyCells.has(`${currentPos.x},${currentPos.y}`)) {
       touchedIce = true;
     }
+    if (isKumStage && state.sandCheckpoint) {
+      const key = `${currentPos.x},${currentPos.y}`;
+      if (key === state.sandCheckpoint) {
+        // Full-map reveal while standing on checkpoint
+        sandRevealSeconds = 999;
+        break; // stop movement on checkpoint; next move decides
+      } else if (sandRevealSeconds > 0) {
+        sandRevealSeconds = 0;
+      }
+    }
+    if (isToprakStage) {
+      const key = `${currentPos.x},${currentPos.y}`;
+      if (!protectedSoil?.has(key)) {
+        if (!soilUpdated) {
+          soilVisits = new Map(state.soilVisits);
+          soilUpdated = true;
+        }
+        const nextCount = (soilVisits.get(key) ?? 0) + 1;
+        soilVisits.set(key, nextCount);
+        if (nextCount >= 3) {
+          collapsePositions.push({ x: currentPos.x, y: currentPos.y });
+          break;
+        }
+      }
+    }
 
     // Collect coin if present at this position (your current rule: pass-through collects)
     const coin = state.coins.find(c => c.position.x === currentPos.x && c.position.y === currentPos.y);
@@ -124,11 +171,21 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
       collectedCoins: new Set(state.collectedCoins),
       timeLeft: state.timeLeft,
       lastMoveIcy: state.lastMoveIcy,
+      soilVisits: new Map(state.soilVisits),
+      sandRevealSeconds: state.sandRevealSeconds,
     },
   ];
 
   const newMovesLeft = state.movesLeft - 1;
   const nextTimeLeft = state.timeLeft;
+  let nextGrid = state.grid;
+  if (collapsePositions.length > 0) {
+    const nextCells = state.grid.cells.map((row) => row.slice());
+    for (const pos of collapsePositions) {
+      nextCells[pos.y][pos.x] = 'wall';
+    }
+    nextGrid = { ...state.grid, cells: nextCells };
+  }
 
   // Win condition: at exit AND all coins collected (your current rule stays)
   if (lastValidPos.x === state.exitPos.x && lastValidPos.y === state.exitPos.y) {
@@ -141,25 +198,33 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
       if (nextTimeLeft !== null && nextTimeLeft <= 0) {
         return {
           ...state,
+          grid: nextGrid,
+          playerPos: lastValidPos,
+          collectedCoins: newCollectedCoins,
+          movesLeft: newMovesLeft,
+          timeLeft: nextTimeLeft,
+          lastMoveIcy: touchedIce,
+          soilVisits,
+          sandStormActive: nextSandStormActive,
+          sandRevealSeconds,
+          status: 'lost',
+          history: newHistory,
+        };
+      }
+      return {
+        ...state,
+        grid: nextGrid,
         playerPos: lastValidPos,
         collectedCoins: newCollectedCoins,
         movesLeft: newMovesLeft,
         timeLeft: nextTimeLeft,
         lastMoveIcy: touchedIce,
-        status: 'lost',
+        soilVisits,
+        sandStormActive: nextSandStormActive,
+        sandRevealSeconds,
+        status: 'won',
         history: newHistory,
       };
-    }
-    return {
-      ...state,
-      playerPos: lastValidPos,
-      collectedCoins: newCollectedCoins,
-      movesLeft: newMovesLeft,
-      timeLeft: nextTimeLeft,
-      lastMoveIcy: touchedIce,
-      status: 'won',
-      history: newHistory,
-    };
     }
     // If not all coins collected, game continues (your current behavior stays)
   }
@@ -168,11 +233,15 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
   if (newMovesLeft <= 0 || (nextTimeLeft !== null && nextTimeLeft <= 0)) {
     return {
       ...state,
+      grid: nextGrid,
       playerPos: lastValidPos,
       collectedCoins: newCollectedCoins,
       movesLeft: newMovesLeft,
       timeLeft: nextTimeLeft,
       lastMoveIcy: touchedIce,
+      soilVisits,
+      sandStormActive: nextSandStormActive,
+      sandRevealSeconds,
       status: 'lost',
       history: newHistory,
     };
@@ -180,11 +249,15 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
 
   return {
     ...state,
+    grid: nextGrid,
     playerPos: lastValidPos,
     collectedCoins: newCollectedCoins,
     movesLeft: newMovesLeft,
     timeLeft: nextTimeLeft,
     lastMoveIcy: touchedIce,
+    soilVisits,
+    sandStormActive: nextSandStormActive,
+    sandRevealSeconds,
     history: newHistory,
   };
 }
@@ -208,6 +281,8 @@ export function undo(state: MazeState): MazeState {
     collectedCoins: new Set(lastState.collectedCoins),
     timeLeft: lastState.timeLeft ?? state.timeLeft,
     lastMoveIcy: lastState.lastMoveIcy ?? false,
+    soilVisits: lastState.soilVisits ?? new Map(state.soilVisits),
+    sandRevealSeconds: lastState.sandRevealSeconds ?? state.sandRevealSeconds,
     history: newHistory,
     status: 'playing',
   };
@@ -233,6 +308,12 @@ export function gameReducer(state: MazeState, action: GameAction): MazeState {
 
     case 'RESTART':
       return restart(state);
+
+    case 'SAND_REVEAL_TICK': {
+      if (state.sandRevealSeconds <= 0) return state;
+      const next = Math.max(0, state.sandRevealSeconds - action.seconds);
+      return { ...state, sandRevealSeconds: next };
+    }
 
     case 'TICK': {
       if (state.status !== 'playing') return state;
@@ -269,6 +350,7 @@ function getNewPosition(pos: Position, direction: Direction): Position {
       return { x: pos.x + 1, y: pos.y };
   }
 }
+
 
 function isValidPosition(pos: Position, grid: { width: number; height: number }): boolean {
   return pos.x >= 0 && pos.x < grid.width && pos.y >= 0 && pos.y < grid.height;

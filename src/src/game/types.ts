@@ -54,6 +54,8 @@ export interface HistoryEntry {
   collectedCoins: Set<string>; // "x,y" format
   timeLeft?: number | null;
   lastMoveIcy?: boolean;
+  soilVisits?: Map<string, number>;
+  sandRevealSeconds?: number;
 }
 
 export interface MazeState {
@@ -64,6 +66,10 @@ export interface MazeState {
   coins: Coin[];
   doors: Door[];
   icyCells: Set<string>;
+  soilVisits: Map<string, number>;
+  sandStormActive: boolean;
+  sandCheckpoint: string | null;
+  sandRevealSeconds: number;
   collectedCoins: Set<string>; // "x,y" format
   movesLeft: number;
   maxMoves: number;
@@ -86,6 +92,7 @@ export type GameAction =
   | { type: 'MOVE'; direction: Direction }
   | { type: 'UNDO' }
   | { type: 'RESTART' }
+  | { type: 'SAND_REVEAL_TICK'; seconds: number }
   | { type: 'TICK'; seconds: number }
   | { type: 'NEXT_LEVEL' }
   | { type: 'LOAD_LEVEL'; level: number; seed?: number };
