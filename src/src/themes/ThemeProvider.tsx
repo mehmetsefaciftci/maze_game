@@ -15,6 +15,7 @@ function applyThemeToCssVars(theme: StageTheme) {
   root.style.setProperty('--color-secondary', theme.colors.secondary);
   root.style.setProperty('--color-accent', theme.colors.accent);
   root.style.setProperty('--color-background', theme.colors.background);
+  root.style.setProperty('--background', theme.colors.background);
   root.style.setProperty('--color-grid-bg', theme.colors.gridBg);
   root.style.setProperty('--color-wall', theme.colors.wall);
   root.style.setProperty('--color-floor', theme.colors.floor);
