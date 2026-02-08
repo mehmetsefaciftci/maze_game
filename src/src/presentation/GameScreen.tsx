@@ -115,12 +115,16 @@ export function GameScreen() {
   const [paused, setPaused] = useState(false);
   const [kumIntroOpen, setKumIntroOpen] = useState(false);
   const [volkanIntroOpen, setVolkanIntroOpen] = useState(false);
+  const [buzIntroOpen, setBuzIntroOpen] = useState(false);
+  const [buzIntroDismissed, setBuzIntroDismissed] = useState(false);
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
   const [mazeScale, setMazeScale] = useState(1);
   const prevKumLevelRef = useRef<number | null>(null);
   const prevKumHistoryLenRef = useRef<number>(0);
   const prevVolkanLevelRef = useRef<number | null>(null);
   const prevVolkanHistoryLenRef = useRef<number>(0);
+  const prevBuzLevelRef = useRef<number | null>(null);
+  const prevBuzHistoryLenRef = useRef<number>(0);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -239,6 +243,36 @@ export function GameScreen() {
     prevVolkanHistoryLenRef.current = state.history.length;
   }, [state.level, state.history.length]);
 
+  // Buz stage intro (only on first enter or restart; not on auto-advance)
+  useEffect(() => {
+    if (screen !== 'game') {
+      setBuzIntroOpen(false);
+      setBuzIntroDismissed(false);
+      return;
+    }
+    const isFreshStart =
+      state.status === 'playing' && state.history.length === 0 && state.movesLeft === state.maxMoves;
+    if (currentStage !== 'buz' || !isFreshStart) {
+      setBuzIntroOpen(false);
+      return;
+    }
+    const prevLevel = prevBuzLevelRef.current;
+    const prevHistoryLen = prevBuzHistoryLenRef.current;
+    const isFirstEnter = prevLevel !== state.level;
+    const isRestart = prevLevel === state.level && prevHistoryLen > 0;
+    if (isFirstEnter || isRestart) {
+      setBuzIntroOpen(true);
+      setBuzIntroDismissed(false);
+      return;
+    }
+    setBuzIntroOpen(false);
+  }, [screen, currentStage, state.status, state.history.length, state.movesLeft, state.maxMoves, state.level]);
+
+  useEffect(() => {
+    prevBuzLevelRef.current = state.level;
+    prevBuzHistoryLenRef.current = state.history.length;
+  }, [state.level, state.history.length]);
+
   // Boot: load logged user (if exists)
   useEffect(() => {
     const existing = loadCurrentUser();
@@ -323,10 +357,13 @@ export function GameScreen() {
           return;
       }
 
-      if (direction) {
-        e.preventDefault();
-        dispatch({ type: 'MOVE', direction });
-      }
+        if (direction) {
+          e.preventDefault();
+          if (currentStage === 'buz' && !state.iceTimerStarted && buzIntroDismissed) {
+            dispatch({ type: 'START_ICE_TIMER' });
+          }
+          dispatch({ type: 'MOVE', direction });
+        }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -385,7 +422,12 @@ export function GameScreen() {
       if (Math.abs(deltaY) > minSwipeDistance) direction = deltaY > 0 ? 'down' : 'up';
     }
 
-    if (direction) dispatch({ type: 'MOVE', direction });
+    if (direction) {
+      if (currentStage === 'buz' && !state.iceTimerStarted && buzIntroDismissed) {
+        dispatch({ type: 'START_ICE_TIMER' });
+      }
+      dispatch({ type: 'MOVE', direction });
+    }
     touchStartRef.current = null;
   };
 
@@ -645,6 +687,50 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
+          {buzIntroOpen &&
+            currentStage === 'buz' &&
+            createPortal(
+              <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 2147483647 }}>
+                <div
+                  className="w-full max-w-[92%] sm:max-w-[420px] rounded-2xl p-5 text-white shadow-2xl"
+                  style={{
+                    backgroundColor: 'rgba(15, 30, 45, 0.94)',
+                    border: '1px solid rgba(120, 180, 220, 0.35)',
+                    boxShadow: '0 18px 40px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(2px)',
+                  }}
+                >
+                  <div className="font-black text-base" style={{ color: '#EAF3F8' }}>
+                    Buz Aşaması
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#EAF3F8' }}>
+                    Zaman işlemeye başladığında buz seni yavaşlatır. Bazı buzlu zeminlerde{' '}
+                    <span style={{ color: '#9fe3ff', fontWeight: 900 }}>vakit alır</span>.
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#EAF3F8' }}>
+                    <span style={{ color: '#9fe3ff', fontWeight: 900 }}>Süre dolmadan</span> ve hamlelerini doğru kullanarak
+                    çıkışa ulaşmalısın.
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => {
+                        setBuzIntroOpen(false);
+                        setBuzIntroDismissed(true);
+                      }}
+                      className="w-full rounded-lg py-2 text-sm font-black"
+                      style={{
+                        backgroundColor: '#11293A',
+                        color: '#EAF3F8',
+                        border: '1px solid rgba(120, 180, 220, 0.5)',
+                      }}
+                    >
+                      Tamam
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
           {volkanIntroOpen &&
             currentStage === 'volkan' &&
             createPortal(

@@ -48,6 +48,7 @@ export function createLevel(level: number, seed?: number): MazeState {
     maxMoves,
     timeLeft: maxTime,
     maxTime,
+    iceTimerStarted: getStageTheme(level) !== 'buz',
     lastMoveIcy: false,
     status: 'playing',
     history: [],
@@ -362,6 +363,10 @@ export function gameReducer(state: MazeState, action: GameAction): MazeState {
     case 'RESTART':
       return restart(state);
 
+    case 'START_ICE_TIMER':
+      if (state.iceTimerStarted) return state;
+      return { ...state, iceTimerStarted: true };
+
     case 'SAND_REVEAL_TICK': {
       if (state.sandRevealSeconds <= 0) return state;
       const next = Math.max(0, state.sandRevealSeconds - action.seconds);
@@ -371,6 +376,7 @@ export function gameReducer(state: MazeState, action: GameAction): MazeState {
     case 'TICK': {
       if (state.status !== 'playing') return state;
       if (state.timeLeft === null) return state;
+      if (!state.iceTimerStarted) return state;
       const nextTime = Math.max(0, state.timeLeft - action.seconds);
       if (nextTime <= 0) {
         return { ...state, timeLeft: nextTime, status: 'lost' };

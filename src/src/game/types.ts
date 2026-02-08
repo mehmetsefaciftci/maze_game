@@ -79,6 +79,7 @@ export interface MazeState {
   maxMoves: number;
   timeLeft: number | null;
   maxTime: number | null;
+  iceTimerStarted: boolean;
   lastMoveIcy: boolean;
   status: GameStatus;
   history: HistoryEntry[];
@@ -96,6 +97,7 @@ export type GameAction =
   | { type: 'MOVE'; direction: Direction }
   | { type: 'UNDO' }
   | { type: 'RESTART' }
+  | { type: 'START_ICE_TIMER' }
   | { type: 'SAND_REVEAL_TICK'; seconds: number }
   | { type: 'TICK'; seconds: number }
   | { type: 'NEXT_LEVEL' }
