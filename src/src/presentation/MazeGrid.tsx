@@ -25,6 +25,8 @@ interface MazeGridProps {
   sandStormActive?: boolean;
   sandCheckpoint?: string | null;
   sandRevealSeconds?: number;
+  lavaRow?: number | null;
+  lavaMoveCounter?: number;
   theme?: StageTheme;
 }
 
@@ -41,6 +43,8 @@ export const MazeGrid = memo(function MazeGrid({
   sandStormActive,
   sandCheckpoint,
   sandRevealSeconds,
+  lavaRow,
+  lavaMoveCounter,
   theme = 'gezegen',
 }: MazeGridProps) {
   const height = grid.length;
@@ -109,6 +113,10 @@ export const MazeGrid = memo(function MazeGrid({
   const isVolkan = themeKey === 'volkan';
   const isPlayerOnIce = icyCells?.has(`${playerPos.x},${playerPos.y}`) ?? false;
   const shouldSlowMove = Boolean(lastMoveIcy);
+  const warnLavaRow =
+    isVolkan && typeof lavaRow === 'number' && lavaRow < (grid.height - 1) && (lavaMoveCounter ?? 0) >= 2
+      ? lavaRow + 1
+      : null;
   const sandRevealActive = (sandRevealSeconds ?? 0) > 0;
   const isKumFog = themeKey === 'kum' && sandStormActive && !sandRevealActive;
   const isVisibleCell = (x: number, y: number) => {
@@ -191,6 +199,8 @@ export const MazeGrid = memo(function MazeGrid({
           playerPos={playerPos}
           sandCheckpoint={sandCheckpoint}
           sandRevealActive={sandRevealActive}
+          lavaRow={lavaRow}
+          warnLavaRow={warnLavaRow}
         />
 
         {/* Coins */}
@@ -387,6 +397,7 @@ interface MazeCellProps {
   isIceCell?: boolean;
   isCracked?: boolean;
   isCheckpoint?: boolean;
+  isLavaWarning?: boolean;
 }
 
 const MazeCell = memo(function MazeCell({
@@ -403,6 +414,7 @@ const MazeCell = memo(function MazeCell({
   isIceCell,
   isCracked,
   isCheckpoint,
+  isLavaWarning,
 }: MazeCellProps) {
   const baseClass = `${cellSizeClass} rounded-sm transition-all duration-150 relative overflow-hidden`;
   const sizeStyle = cellSizeClass ? undefined : { width: cellPx, height: cellPx };
@@ -421,6 +433,11 @@ const MazeCell = memo(function MazeCell({
           backgroundSize: isVolkan ? '200% 200%' : wallImage ? 'cover' : undefined,
           animation: isVolkan ? 'volkanWallFlicker 2.2s ease-in-out infinite alternate' : undefined,
           filter: isVolkan ? 'saturate(1.35) brightness(1.12)' : undefined,
+          outline: isLavaWarning ? '1px solid rgba(255, 140, 60, 0.8)' : undefined,
+          animationDuration: isLavaWarning ? '0.35s' : undefined,
+          animationTimingFunction: isLavaWarning ? 'linear' : undefined,
+          animationIterationCount: isLavaWarning ? 'infinite' : undefined,
+          animationName: isLavaWarning ? 'lavaWarnShake' : isVolkan ? 'volkanWallFlicker' : undefined,
           ...sizeStyle,
         }}
         onClick={onClick}
@@ -440,6 +457,11 @@ const MazeCell = memo(function MazeCell({
         filter: isVolkan ? 'saturate(1.08)' : undefined,
         border: isIceCell ? '1px solid rgba(140, 220, 255, 0.85)' : undefined,
         boxShadow: isIceCell ? 'inset 0 0 8px rgba(120, 200, 255, 0.6)' : undefined,
+        outline: isLavaWarning ? '1px solid rgba(255, 140, 60, 0.8)' : undefined,
+        animationDuration: isLavaWarning ? '0.35s' : undefined,
+        animationTimingFunction: isLavaWarning ? 'linear' : undefined,
+        animationIterationCount: isLavaWarning ? 'infinite' : undefined,
+        animationName: isLavaWarning ? 'lavaWarnShake' : isVolkan ? 'volkanPathPulse' : undefined,
       }}
       onClick={onClick}
     >
@@ -523,6 +545,8 @@ interface StaticGridProps {
   playerPos?: Position;
   sandCheckpoint?: string | null;
   sandRevealActive?: boolean;
+  lavaRow?: number | null;
+  warnLavaRow?: number | null;
 }
 
 const StaticGrid = memo(function StaticGrid({
@@ -541,6 +565,8 @@ const StaticGrid = memo(function StaticGrid({
   playerPos,
   sandCheckpoint,
   sandRevealActive,
+  lavaRow,
+  warnLavaRow,
 }: StaticGridProps) {
   const canUseDom = typeof document !== 'undefined';
   return (
@@ -556,6 +582,13 @@ const StaticGrid = memo(function StaticGrid({
             0% { background-position: 0% 0%; opacity: 0.95; }
             100% { background-position: 100% 100%; opacity: 1; }
           }
+          @keyframes lavaWarnShake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-1px); }
+            50% { transform: translateX(1px); }
+            75% { transform: translateX(-1px); }
+            100% { transform: translateX(0); }
+          }
         `}
         </style>
       )}
@@ -566,6 +599,8 @@ const StaticGrid = memo(function StaticGrid({
             sandRevealActive ||
             (playerPos && Math.abs(x - playerPos.x) <= 1 && Math.abs(y - playerPos.y) <= 1);
           const isCheckpoint = isVisible && sandCheckpoint === `${x},${y}`;
+          const isLava = isVolkan && typeof lavaRow === 'number' && y >= lavaRow;
+          const isLavaWarning = isVolkan && warnLavaRow !== null && y === warnLavaRow;
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
           const isIceCell = icyCells?.has(`${x},${y}`) ?? false;
           const isCracked =
@@ -575,16 +610,35 @@ const StaticGrid = memo(function StaticGrid({
               key={`${x}-${y}`}
               type={isVisible ? cellType : 'path'}
               cellSizeClass={cellSizeClass}
-              wallClass={isVisible ? wallClass : 'bg-black/60'}
-              wallShadow={isVisible ? wallShadow : 'none'}
-              wallImage={isVisible ? wallImage : undefined}
-              pathClass={isVisible ? pathClass : 'bg-black/50'}
+              wallClass={
+                isVisible
+                  ? isLava
+                    ? 'bg-gradient-to-br from-red-700 via-orange-600 to-yellow-500'
+                    : wallClass
+                  : 'bg-black/60'
+              }
+              wallShadow={
+                isVisible
+                  ? isLava
+                    ? 'inset 0 -2px 6px rgba(0,0,0,0.5), 0 0 12px rgba(255, 120, 40, 0.6)'
+                    : wallShadow
+                  : 'none'
+              }
+              wallImage={isVisible ? (isLava ? undefined : wallImage) : undefined}
+              pathClass={
+                isVisible
+                  ? isLava
+                    ? 'bg-gradient-to-br from-red-800 via-orange-700 to-yellow-600'
+                    : pathClass
+                  : 'bg-black/50'
+              }
               themeKey={themeKey}
               cellPx={cellPx}
               isVolkan={isVolkan}
               isIceCell={isVisible ? isIceCell : false}
               isCracked={isVisible ? isCracked : false}
               isCheckpoint={isCheckpoint}
+              isLavaWarning={isLavaWarning}
               // prod'da istersen kaldırırız
               onClick={() => console.log('cell', { x, y })}
             />

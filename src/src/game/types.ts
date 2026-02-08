@@ -56,6 +56,8 @@ export interface HistoryEntry {
   lastMoveIcy?: boolean;
   soilVisits?: Map<string, number>;
   sandRevealSeconds?: number;
+  lavaRow?: number | null;
+  lavaMoveCounter?: number;
 }
 
 export interface MazeState {
@@ -70,6 +72,8 @@ export interface MazeState {
   sandStormActive: boolean;
   sandCheckpoint: string | null;
   sandRevealSeconds: number;
+  lavaRow: number | null;
+  lavaMoveCounter: number;
   collectedCoins: Set<string>; // "x,y" format
   movesLeft: number;
   maxMoves: number;

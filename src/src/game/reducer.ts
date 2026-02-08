@@ -41,6 +41,8 @@ export function createLevel(level: number, seed?: number): MazeState {
     sandStormActive: false,
     sandCheckpoint,
     sandRevealSeconds: 0,
+    lavaRow: getStageTheme(level) === 'volkan' ? -1 : null,
+    lavaMoveCounter: 0,
     collectedCoins: new Set(),
     movesLeft: maxMoves,
     maxMoves,
@@ -70,6 +72,7 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
   const stageTheme = getStageTheme(state.level);
   const isToprakStage = stageTheme === 'toprak';
   const isKumStage = stageTheme === 'kum';
+  const isVolkanStage = stageTheme === 'volkan';
   const nextSandStormActive = isKumStage ? true : state.sandStormActive;
   let sandRevealSeconds = state.sandRevealSeconds;
   const protectedSoil = isToprakStage
@@ -83,6 +86,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
   let soilVisits = state.soilVisits;
   let soilUpdated = false;
   let collapsePositions: Position[] = [];
+  let lavaRow = state.lavaRow;
+  let lavaMoveCounter = state.lavaMoveCounter;
 
   // ✅ Copy Set so we never mutate state.collectedCoins reference
   let newCollectedCoins = new Set(state.collectedCoins);
@@ -173,6 +178,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
       lastMoveIcy: state.lastMoveIcy,
       soilVisits: new Map(state.soilVisits),
       sandRevealSeconds: state.sandRevealSeconds,
+      lavaRow: state.lavaRow,
+      lavaMoveCounter: state.lavaMoveCounter,
     },
   ];
 
@@ -187,6 +194,22 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     nextGrid = { ...state.grid, cells: nextCells };
   }
 
+  if (isVolkanStage && lavaRow !== null) {
+    lavaMoveCounter += 1;
+    if (lavaMoveCounter >= 3) {
+      lavaMoveCounter = 0;
+      const nextLavaRow = lavaRow + 1;
+      if (nextLavaRow < nextGrid.height) {
+        const nextCells = nextGrid.cells.map((row) => row.slice());
+        for (let x = 0; x < nextCells[0].length; x++) {
+          nextCells[nextLavaRow][x] = 'wall';
+        }
+        nextGrid = { ...nextGrid, cells: nextCells };
+        lavaRow = nextLavaRow;
+      }
+    }
+  }
+
   // Win condition: at exit AND all coins collected (your current rule stays)
   if (lastValidPos.x === state.exitPos.x && lastValidPos.y === state.exitPos.y) {
     const allCoinsCollected = state.coins.every(coin => {
@@ -195,6 +218,25 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     });
 
     if (allCoinsCollected) {
+      const hitLava = lavaRow !== null && lastValidPos.y === lavaRow;
+      if (hitLava) {
+        return {
+          ...state,
+          grid: nextGrid,
+          playerPos: lastValidPos,
+          collectedCoins: newCollectedCoins,
+          movesLeft: newMovesLeft,
+          timeLeft: nextTimeLeft,
+          lastMoveIcy: touchedIce,
+          soilVisits,
+          sandStormActive: nextSandStormActive,
+          sandRevealSeconds,
+          lavaRow,
+          lavaMoveCounter,
+          status: 'lost',
+          history: newHistory,
+        };
+      }
       if (nextTimeLeft !== null && nextTimeLeft <= 0) {
         return {
           ...state,
@@ -207,6 +249,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
           soilVisits,
           sandStormActive: nextSandStormActive,
           sandRevealSeconds,
+          lavaRow,
+          lavaMoveCounter,
           status: 'lost',
           history: newHistory,
         };
@@ -222,6 +266,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
         soilVisits,
         sandStormActive: nextSandStormActive,
         sandRevealSeconds,
+        lavaRow,
+        lavaMoveCounter,
         status: 'won',
         history: newHistory,
       };
@@ -230,7 +276,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
   }
 
   // Lose condition (your current behavior stays)
-  if (newMovesLeft <= 0 || (nextTimeLeft !== null && nextTimeLeft <= 0)) {
+  const hitLava = lavaRow !== null && lastValidPos.y <= lavaRow;
+  if (newMovesLeft <= 0 || (nextTimeLeft !== null && nextTimeLeft <= 0) || hitLava) {
     return {
       ...state,
       grid: nextGrid,
@@ -242,6 +289,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
       soilVisits,
       sandStormActive: nextSandStormActive,
       sandRevealSeconds,
+      lavaRow,
+      lavaMoveCounter,
       status: 'lost',
       history: newHistory,
     };
@@ -258,6 +307,8 @@ export function applyMove(state: MazeState, direction: Direction): MazeState {
     soilVisits,
     sandStormActive: nextSandStormActive,
     sandRevealSeconds,
+    lavaRow,
+    lavaMoveCounter,
     history: newHistory,
   };
 }
@@ -283,6 +334,8 @@ export function undo(state: MazeState): MazeState {
     lastMoveIcy: lastState.lastMoveIcy ?? false,
     soilVisits: lastState.soilVisits ?? new Map(state.soilVisits),
     sandRevealSeconds: lastState.sandRevealSeconds ?? state.sandRevealSeconds,
+    lavaRow: lastState.lavaRow ?? state.lavaRow,
+    lavaMoveCounter: lastState.lavaMoveCounter ?? state.lavaMoveCounter,
     history: newHistory,
     status: 'playing',
   };

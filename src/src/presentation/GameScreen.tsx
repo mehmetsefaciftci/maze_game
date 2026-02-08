@@ -114,10 +114,13 @@ export function GameScreen() {
   const [selectedStage, setSelectedStage] = useState<StageKey>('gezegen');
   const [paused, setPaused] = useState(false);
   const [kumIntroOpen, setKumIntroOpen] = useState(false);
+  const [volkanIntroOpen, setVolkanIntroOpen] = useState(false);
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
   const [mazeScale, setMazeScale] = useState(1);
   const prevKumLevelRef = useRef<number | null>(null);
   const prevKumHistoryLenRef = useRef<number>(0);
+  const prevVolkanLevelRef = useRef<number | null>(null);
+  const prevVolkanHistoryLenRef = useRef<number>(0);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -206,6 +209,34 @@ export function GameScreen() {
   useEffect(() => {
     prevKumLevelRef.current = state.level;
     prevKumHistoryLenRef.current = state.history.length;
+  }, [state.level, state.history.length]);
+
+  // Volkan stage intro (only on first enter or restart; not on auto-advance)
+  useEffect(() => {
+    if (screen !== 'game') {
+      setVolkanIntroOpen(false);
+      return;
+    }
+    const isFreshStart =
+      state.status === 'playing' && state.history.length === 0 && state.movesLeft === state.maxMoves;
+    if (currentStage !== 'volkan' || !isFreshStart) {
+      setVolkanIntroOpen(false);
+      return;
+    }
+    const prevLevel = prevVolkanLevelRef.current;
+    const prevHistoryLen = prevVolkanHistoryLenRef.current;
+    const isFirstEnter = prevLevel !== state.level;
+    const isRestart = prevLevel === state.level && prevHistoryLen > 0;
+    if (isFirstEnter || isRestart) {
+      setVolkanIntroOpen(true);
+      return;
+    }
+    setVolkanIntroOpen(false);
+  }, [screen, currentStage, state.status, state.history.length, state.movesLeft, state.maxMoves, state.level]);
+
+  useEffect(() => {
+    prevVolkanLevelRef.current = state.level;
+    prevVolkanHistoryLenRef.current = state.history.length;
   }, [state.level, state.history.length]);
 
   // Boot: load logged user (if exists)
@@ -614,6 +645,45 @@ export function GameScreen() {
         </div>
       ) : screen === 'game' ? (
         <>
+          {volkanIntroOpen &&
+            currentStage === 'volkan' &&
+            createPortal(
+              <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 2147483647 }}>
+                <div
+                  className="w-full max-w-[92%] sm:max-w-[420px] rounded-2xl p-5 text-white shadow-2xl"
+                  style={{
+                    backgroundColor: 'rgba(26, 14, 11, 0.95)',
+                    border: '1px solid rgba(255, 120, 80, 0.5)',
+                    boxShadow: '0 18px 40px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  <div className="font-black text-base" style={{ color: '#F2ECE8' }}>
+                    Volkan Aşaması
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#F2ECE8' }}>
+                    Lava yukarıdan aşağıya doğru ilerler.{' '}
+                    <span style={{ color: '#ff6b3d', fontWeight: 900 }}>Her 3 hamlede</span> bir alan daralır.
+                  </div>
+                  <div className="mt-2 text-[13px] font-semibold leading-relaxed" style={{ color: '#F2ECE8' }}>
+                    Hızlı değil, doğru kararlar seni kurtarır.
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setVolkanIntroOpen(false)}
+                      className="w-full rounded-lg py-2 text-sm font-black"
+                      style={{
+                        backgroundColor: '#2B0F0A',
+                        color: '#F2ECE8',
+                        border: '1px solid rgba(255, 120, 80, 0.6)',
+                      }}
+                    >
+                      Tamam
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
           {kumIntroOpen &&
             currentStage === 'kum' &&
             createPortal(
@@ -761,6 +831,8 @@ export function GameScreen() {
                         sandStormActive={state.sandStormActive}
                         sandCheckpoint={state.sandCheckpoint}
                         sandRevealSeconds={state.sandRevealSeconds}
+                        lavaRow={state.lavaRow}
+                        lavaMoveCounter={state.lavaMoveCounter}
                         theme={currentStage}
                       />
                     </div>
