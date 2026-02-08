@@ -166,29 +166,45 @@ export function ToprakStage({
               <div className="flex items-center gap-2">
                 <button
                   onClick={onPause}
-                  className="rounded-full text-base font-black text-white transition-all flex items-center justify-center"
+                  aria-label="Duraklat"
+                  title="Duraklat"
+                  className="rounded-full text-base font-black text-white transition-all flex items-center justify-center p-0"
                   style={{
-                    width: '90.29px',
-                    height: '41.6px',
+                    width: '64px',
+                    height: '64px',
                     background: 'linear-gradient(180deg, rgba(96, 66, 44, 0.95) 0%, rgba(58, 38, 26, 0.95) 100%)',
                     boxShadow:
                       '0 12px 26px rgba(35, 22, 14, 0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
                   }}
                 >
-                  Duraklat
+                  <img
+                    src="/icons/duraklat-ikonu.png"
+                    alt=""
+                    className="w-[40px] h-[40px] object-contain"
+                    style={{ transform: 'translate(-2px, 2px)' }}
+                    aria-hidden="true"
+                  />
                 </button>
                 <button
                   onClick={onRestart}
-                  className="rounded-full text-base font-black text-white transition-all flex items-center justify-center"
+                  aria-label="Yeniden Başla"
+                  title="Yeniden Başla"
+                  className="rounded-full text-base font-black text-white transition-all flex items-center justify-center p-0"
                   style={{
-                    width: '90.29px',
-                    height: '41.6px',
+                    width: '64px',
+                    height: '64px',
                     background: 'linear-gradient(180deg, rgba(136, 82, 42, 0.95) 0%, rgba(84, 48, 24, 0.95) 100%)',
                     boxShadow:
                       '0 12px 26px rgba(35, 22, 14, 0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
                   }}
                 >
-                  Yeniden Başla
+                  <img
+                    src="/icons/yeniden-baslat-ikonu.png"
+                    alt=""
+                    className="w-[40px] h-[40px] object-contain"
+                    style={{ transform: 'translate(0, 2px)' }}
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
             </div>

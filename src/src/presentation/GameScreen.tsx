@@ -943,15 +943,31 @@ export function GameScreen() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handlePauseToggle}
-                        className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                        aria-label="Duraklat"
+                        title="Duraklat"
+                        className="bg-white/10 text-white rounded-2xl border border-white/20 w-[64px] h-[64px] flex items-center justify-center p-0"
                       >
-                        Duraklat
+                        <img
+                          src="/icons/duraklat-ikonu.png"
+                          alt=""
+                          className="w-[40px] h-[40px] object-contain"
+                          style={{ transform: 'translate(-2px, 2px)' }}
+                          aria-hidden="true"
+                        />
                       </button>
                       <button
                         onClick={handleRestartLevel}
-                        className="bg-white/10 text-white text-sm font-bold px-4 py-2.5 rounded-2xl border border-white/20"
+                        aria-label="Yeniden Başla"
+                        title="Yeniden Başla"
+                        className="bg-white/10 text-white rounded-2xl border border-white/20 w-[64px] h-[64px] flex items-center justify-center p-0"
                       >
-                        Yeniden Başla
+                        <img
+                          src="/icons/yeniden-baslat-ikonu.png"
+                          alt=""
+                          className="w-[40px] h-[40px] object-contain"
+                          style={{ transform: 'translate(0, 2px)' }}
+                          aria-hidden="true"
+                        />
                       </button>
                     </div>
                   </div>
@@ -1061,14 +1077,21 @@ export function GameScreen() {
                         </button>
                         <button
                           onClick={handleRestartLevel}
-                          className="py-2.5 rounded-xl font-bold"
+                          aria-label="Yeniden Başla"
+                          title="Yeniden Başla"
+                          className="py-2.5 rounded-xl font-bold flex items-center justify-center"
                           style={{
                             backgroundColor: '#d0d3d8',
                             color: '#2f2f2f',
                             border: '1px solid #b0b6bc',
                           }}
                         >
-                          Yeniden Başla
+                          <img
+                            src="/icons/yeniden-baslat-ikonu.png"
+                            alt=""
+                            className="w-8 h-8 object-contain"
+                            aria-hidden="true"
+                          />
                         </button>
                         <button
                           onClick={handlePauseMenu}
