@@ -555,6 +555,7 @@ export function GameScreen() {
   );
   const selectedStageRangeText = `Bölüm 1-${selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1}`;
   const theme = THEMES[activeThemeKey];
+  const assetBase = import.meta.env.BASE_URL ?? '/';
 
   useEffect(() => {
     if (state.status === 'playing') {
@@ -1128,7 +1129,7 @@ export function GameScreen() {
                           }}
                         >
                           <img
-                            src="/icons/devam-et-ikonu.png"
+                            src={`${assetBase}icons/devam-et-ikonu.png`}
                             alt=""
                             className="w-8 h-8 object-contain"
                             style={{ transform: 'translate(-2px, 2px)' }}
