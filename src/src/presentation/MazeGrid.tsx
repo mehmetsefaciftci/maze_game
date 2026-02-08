@@ -111,18 +111,23 @@ export const MazeGrid = memo(function MazeGrid({
   const wallClass = activeTheme.wall + (themeKey === 'volkan' ? ' volkan-wall' : '');
   const pathClass = activeTheme.path + (themeKey === 'volkan' ? ' volkan-path' : '');
   const isVolkan = themeKey === 'volkan';
+
   const isPlayerOnIce = icyCells?.has(`${playerPos.x},${playerPos.y}`) ?? false;
   const shouldSlowMove = isPlayerOnIce || Boolean(lastMoveIcy);
+
+  // ✅ FIX: grid.height yok; height kullanılır
   const warnLavaRow =
-    isVolkan && typeof lavaRow === 'number' && lavaRow < (grid.height - 1) && (lavaMoveCounter ?? 0) >= 2
+    isVolkan && typeof lavaRow === 'number' && lavaRow < (height - 1) && (lavaMoveCounter ?? 0) >= 2
       ? lavaRow + 1
       : null;
+
   const sandRevealActive = (sandRevealSeconds ?? 0) > 0;
   const isKumFog = themeKey === 'kum' && sandStormActive && !sandRevealActive;
   const isVisibleCell = (x: number, y: number) => {
     if (!isKumFog) return true;
     return Math.abs(x - playerPos.x) <= 1 && Math.abs(y - playerPos.y) <= 1;
   };
+
   const wallShadow = activeTheme.wallShadow;
   const wallImage = activeTheme.wallImage;
 
@@ -139,12 +144,18 @@ export const MazeGrid = memo(function MazeGrid({
   // Color mapping
   const getColorClasses = (color: CoinColor) => {
     switch (color) {
-      case 'red': return { bg: 'from-red-400 to-red-600', shadow: 'rgba(239, 68, 68, 0.8)', border: 'border-red-200' };
-      case 'blue': return { bg: 'from-blue-400 to-blue-600', shadow: 'rgba(59, 130, 246, 0.8)', border: 'border-blue-200' };
-      case 'green': return { bg: 'from-green-400 to-green-600', shadow: 'rgba(34, 197, 94, 0.8)', border: 'border-green-200' };
-      case 'yellow': return { bg: 'from-yellow-400 to-yellow-600', shadow: 'rgba(234, 179, 8, 0.8)', border: 'border-yellow-200' };
-      case 'purple': return { bg: 'from-purple-400 to-purple-600', shadow: 'rgba(168, 85, 247, 0.8)', border: 'border-purple-200' };
-      case 'orange': return { bg: 'from-orange-400 to-orange-600', shadow: 'rgba(249, 115, 22, 0.8)', border: 'border-orange-200' };
+      case 'red':
+        return { bg: 'from-red-400 to-red-600', shadow: 'rgba(239, 68, 68, 0.8)', border: 'border-red-200' };
+      case 'blue':
+        return { bg: 'from-blue-400 to-blue-600', shadow: 'rgba(59, 130, 246, 0.8)', border: 'border-blue-200' };
+      case 'green':
+        return { bg: 'from-green-400 to-green-600', shadow: 'rgba(34, 197, 94, 0.8)', border: 'border-green-200' };
+      case 'yellow':
+        return { bg: 'from-yellow-400 to-yellow-600', shadow: 'rgba(234, 179, 8, 0.8)', border: 'border-yellow-200' };
+      case 'purple':
+        return { bg: 'from-purple-400 to-purple-600', shadow: 'rgba(168, 85, 247, 0.8)', border: 'border-purple-200' };
+      case 'orange':
+        return { bg: 'from-orange-400 to-orange-600', shadow: 'rgba(249, 115, 22, 0.8)', border: 'border-orange-200' };
     }
   };
 
@@ -172,6 +183,7 @@ export const MazeGrid = memo(function MazeGrid({
           />
         </>
       )}
+
       <div
         className={[
           'relative inline-grid backdrop-blur-sm shadow-2xl border-2 z-0',
@@ -180,7 +192,7 @@ export const MazeGrid = memo(function MazeGrid({
         ].join(' ')}
         style={{
           gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
-          padding: paddingPx, // ✅ paddingPx ile birebir hizala
+          padding: paddingPx,
         }}
       >
         <StaticGrid
@@ -240,8 +252,7 @@ export const MazeGrid = memo(function MazeGrid({
 
         {/* Doors */}
         {doors.map((door) => {
-          const isUnlocked = collectedColors.has(door.color); // ✅ RENK bazlı unlock
-
+          const isUnlocked = collectedColors.has(door.color);
           const colors = getColorClasses(door.color);
           const doorKey = `${door.position.x},${door.position.y}`;
           if (!isVisibleCell(door.position.x, door.position.y)) return null;
@@ -270,16 +281,8 @@ export const MazeGrid = memo(function MazeGrid({
                   height: cellPx * 0.7,
                   boxShadow: isUnlocked ? 'none' : `0 0 15px ${colors.shadow}`,
                 }}
-                animate={
-                  isUnlocked
-                    ? { opacity: 0.3, scale: 1.3 }
-                    : { opacity: 1, scale: [1, 1.1, 1] }
-                }
-                transition={
-                  isUnlocked
-                    ? { duration: 0.3, ease: 'easeOut' }
-                    : { duration: 1.5, repeat: Infinity, repeatType: 'reverse' }
-                }
+                animate={isUnlocked ? { opacity: 0.3, scale: 1.3 } : { opacity: 1, scale: [1, 1.1, 1] }}
+                transition={isUnlocked ? { duration: 0.3, ease: 'easeOut' } : { duration: 1.5, repeat: Infinity, repeatType: 'reverse' }}
               >
                 {!isUnlocked && (
                   <Lock className="text-white" strokeWidth={3} style={{ width: cellPx * 0.35, height: cellPx * 0.35 }} />
@@ -333,9 +336,7 @@ export const MazeGrid = memo(function MazeGrid({
             y: playerPos.y * cellStep,
           }}
           transition={
-            shouldSlowMove
-              ? { type: 'tween', duration: 1.3, ease: 'easeOut' }
-              : { type: 'spring', stiffness: 800, damping: 30, mass: 0.3 }
+            shouldSlowMove ? { type: 'tween', duration: 1.3, ease: 'easeOut' } : { type: 'spring', stiffness: 800, damping: 30, mass: 0.3 }
           }
         >
           {isPlayerOnIce && (
@@ -353,12 +354,14 @@ export const MazeGrid = memo(function MazeGrid({
               }}
             />
           )}
+
           <motion.div
             className="absolute inset-0 bg-cyan-400 rounded-full blur-md"
             animate={{ opacity: [0, 0.5, 0], scale: [0.7, 1.4, 0.7] }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
             key={`glow-${playerPos.x}-${playerPos.y}`}
           />
+
           <motion.div
             className="bg-gradient-to-br from-blue-400 via-cyan-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-cyan-200 relative z-10"
             style={{ width: cellPx * 0.7, height: cellPx * 0.7, boxShadow: '0 0 20px rgba(34, 211, 238, 0.9)' }}
@@ -369,6 +372,7 @@ export const MazeGrid = memo(function MazeGrid({
           </motion.div>
         </motion.div>
       </div>
+
       {isKumFog && (
         <style>
           {`
@@ -422,22 +426,32 @@ const MazeCell = memo(function MazeCell({
   const cellFx = getCellFx(themeKey, isWall ? 'wall' : 'path');
 
   if (isWall) {
+    const animationName = isLavaWarning ? 'lavaWarnShake' : isVolkan ? 'volkanWallFlicker' : undefined;
+
     return (
       <div
         className={`${baseClass} ${wallClass}`}
         style={{
           boxShadow: wallShadow,
           backgroundImage: wallImage,
-          backgroundSize: wallImage ? 'cover' : undefined,
-          backgroundPosition: wallImage ? 'center' : undefined,
+
+          // ✅ FIX: tek backgroundSize (duplicate yok)
           backgroundSize: isVolkan ? '200% 200%' : wallImage ? 'cover' : undefined,
-          animation: isVolkan ? 'volkanWallFlicker 2.2s ease-in-out infinite alternate' : undefined,
+
+          // volkan'da da güzel dursun
+          backgroundPosition: (isVolkan || wallImage) ? 'center' : undefined,
+
           filter: isVolkan ? 'saturate(1.35) brightness(1.12)' : undefined,
+
           outline: isLavaWarning ? '1px solid rgba(255, 140, 60, 0.8)' : undefined,
-          animationDuration: isLavaWarning ? '0.35s' : undefined,
-          animationTimingFunction: isLavaWarning ? 'linear' : undefined,
-          animationIterationCount: isLavaWarning ? 'infinite' : undefined,
-          animationName: isLavaWarning ? 'lavaWarnShake' : isVolkan ? 'volkanWallFlicker' : undefined,
+
+          // ✅ Animation tek kaynaktan yönetiliyor
+          animationName,
+          animationDuration: isLavaWarning ? '0.35s' : isVolkan ? '2.2s' : undefined,
+          animationTimingFunction: isLavaWarning ? 'linear' : isVolkan ? 'ease-in-out' : undefined,
+          animationIterationCount: (isLavaWarning || isVolkan) ? 'infinite' : undefined,
+          animationDirection: isVolkan && !isLavaWarning ? 'alternate' : undefined,
+
           ...sizeStyle,
         }}
         onClick={onClick}
@@ -447,21 +461,27 @@ const MazeCell = memo(function MazeCell({
     );
   }
 
+  const pathAnimationName = isLavaWarning ? 'lavaWarnShake' : isVolkan ? 'volkanPathPulse' : undefined;
+
   return (
     <div
       className={`${baseClass} ${pathClass}`}
       style={{
         ...sizeStyle,
         backgroundSize: isVolkan ? '160% 160%' : undefined,
-        animation: isVolkan ? 'volkanPathPulse 3.6s ease-in-out infinite alternate' : undefined,
         filter: isVolkan ? 'saturate(1.08)' : undefined,
+
         border: isIceCell ? '1px solid rgba(140, 220, 255, 0.85)' : undefined,
         boxShadow: isIceCell ? 'inset 0 0 8px rgba(120, 200, 255, 0.6)' : undefined,
+
         outline: isLavaWarning ? '1px solid rgba(255, 140, 60, 0.8)' : undefined,
-        animationDuration: isLavaWarning ? '0.35s' : undefined,
-        animationTimingFunction: isLavaWarning ? 'linear' : undefined,
-        animationIterationCount: isLavaWarning ? 'infinite' : undefined,
-        animationName: isLavaWarning ? 'lavaWarnShake' : isVolkan ? 'volkanPathPulse' : undefined,
+
+        // ✅ Animation tek kaynaktan yönetiliyor
+        animationName: pathAnimationName,
+        animationDuration: isLavaWarning ? '0.35s' : isVolkan ? '3.6s' : undefined,
+        animationTimingFunction: isLavaWarning ? 'linear' : isVolkan ? 'ease-in-out' : undefined,
+        animationIterationCount: (isLavaWarning || isVolkan) ? 'infinite' : undefined,
+        animationDirection: isVolkan && !isLavaWarning ? 'alternate' : undefined,
       }}
       onClick={onClick}
     >
@@ -483,6 +503,7 @@ const MazeCell = memo(function MazeCell({
           />
         </>
       )}
+
       {isCracked && (
         <span
           className="absolute inset-0 opacity-65"
@@ -492,6 +513,7 @@ const MazeCell = memo(function MazeCell({
           }}
         />
       )}
+
       {isCheckpoint && (
         <span className="absolute inset-0 flex items-center justify-center">
           <span
@@ -524,6 +546,7 @@ const MazeCell = memo(function MazeCell({
           </span>
         </span>
       )}
+
       {cellFx}
     </div>
   );
@@ -592,19 +615,24 @@ const StaticGrid = memo(function StaticGrid({
         `}
         </style>
       )}
+
       {grid.map((row, y) =>
         row.map((cell, x) => {
           const isVisible =
             !sandStormActive ||
             sandRevealActive ||
             (playerPos && Math.abs(x - playerPos.x) <= 1 && Math.abs(y - playerPos.y) <= 1);
+
           const isCheckpoint = isVisible && sandCheckpoint === `${x},${y}`;
           const isLava = isVolkan && typeof lavaRow === 'number' && y >= lavaRow;
           const isLavaWarning = isVolkan && warnLavaRow !== null && y === warnLavaRow;
+
           const cellType = cell === 'player' || cell === 'exit' ? 'path' : cell;
           const isIceCell = icyCells?.has(`${x},${y}`) ?? false;
+
           const isCracked =
             themeKey === 'toprak' && (soilVisits?.get(`${x},${y}`) ?? 0) === 2;
+
           return (
             <MazeCell
               key={`${x}-${y}`}
