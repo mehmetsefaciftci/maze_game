@@ -159,11 +159,13 @@ export function GameScreen() {
     const baseWidth = paddingPx * 2 + level8GridSize * cellPx + (level8GridSize - 1) * gapPx;
     const baseHeight = paddingPx * 2 + level8GridSize * cellPx + (level8GridSize - 1) * gapPx;
     const useBaseClamp = !(currentStage === 'gezegen' && state.level <= 7);
+    const clampToBase = currentStage === 'gezegen' && state.level >= 18 && state.level <= 20;
     return {
       totalWidth,
       totalHeight,
       baseWidth: useBaseClamp ? baseWidth : totalWidth,
       baseHeight: useBaseClamp ? baseHeight : totalHeight,
+      clampToBase,
     };
   }, [grid, currentStage, state.level]);
 
@@ -173,8 +175,12 @@ export function GameScreen() {
     const updateScale = () => {
       if (!mazeSlotRef.current) return;
       const rect = mazeSlotRef.current.getBoundingClientRect();
-      const targetWidth = Math.max(mazeSize.totalWidth, mazeSize.baseWidth);
-      const targetHeight = Math.max(mazeSize.totalHeight, mazeSize.baseHeight);
+      const targetWidth = mazeSize.clampToBase
+        ? mazeSize.baseWidth
+        : Math.max(mazeSize.totalWidth, mazeSize.baseWidth);
+      const targetHeight = mazeSize.clampToBase
+        ? mazeSize.baseHeight
+        : Math.max(mazeSize.totalHeight, mazeSize.baseHeight);
       const nextScale = Math.min(rect.width / targetWidth, rect.height / targetHeight);
       setMazeScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
     };

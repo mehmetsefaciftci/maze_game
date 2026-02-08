@@ -97,54 +97,6 @@ const SPECIAL_LEVELS: SpecialLevelConfig[] = [
     doors: [],
   },
   {
-    level: 18,
-    seed: 1327,
-    build: buildLevel18Grid,
-    gridSize: 10,
-    coins: [
-      { position: { x: 1, y: 5 }, color: 'red' },
-      { position: { x: 19, y: 7 }, color: 'blue' },
-      { position: { x: 17, y: 11 }, color: 'green' },
-    ],
-    doors: [
-      { position: { x: 9, y: 1 }, color: 'red' },
-      { position: { x: 5, y: 7 }, color: 'blue' },
-      { position: { x: 3, y: 15 }, color: 'green' },
-    ],
-  },
-  {
-    level: 19,
-    seed: 1334,
-    build: buildLevel19Grid,
-    gridSize: 10,
-    coins: [
-      { position: { x: 1, y: 7 }, color: 'red' },
-      { position: { x: 15, y: 9 }, color: 'blue' },
-      { position: { x: 3, y: 17 }, color: 'green' },
-    ],
-    doors: [
-      { position: { x: 11, y: 1 }, color: 'red' },
-      { position: { x: 7, y: 9 }, color: 'blue' },
-      { position: { x: 5, y: 19 }, color: 'green' },
-    ],
-  },
-  {
-    level: 20,
-    seed: 1341,
-    build: buildLevel20Grid,
-    gridSize: 10,
-    coins: [
-      { position: { x: 1, y: 7 }, color: 'red' },
-      { position: { x: 19, y: 9 }, color: 'blue' },
-      { position: { x: 17, y: 15 }, color: 'green' },
-    ],
-    doors: [
-      { position: { x: 13, y: 1 }, color: 'red' },
-      { position: { x: 9, y: 9 }, color: 'blue' },
-      { position: { x: 3, y: 19 }, color: 'green' },
-    ],
-  },
-  {
     level: 50,
     seed: 1350,
     build: buildLevel50Grid,
@@ -1148,75 +1100,6 @@ function buildLevel8Grid(gridWidth: number, gridHeight: number): Grid {
     { x1: 5, y1: 9, x2: 3, y2: 9 },
     { x1: 3, y1: 9, x2: 3, y2: 11 },
     { x1: 3, y1: 11, x2: 11, y2: 11 },
-  ];
-
-  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
-  openStartExit(grid, gridWidth, gridHeight);
-  return grid;
-}
-
-function buildLevel18Grid(gridWidth: number, gridHeight: number): Grid {
-  const segments: GridSegment[] = [
-    { x1: 1, y1: 1, x2: 1, y2: 5 },
-    { x1: 1, y1: 5, x2: 9, y2: 5 },
-    { x1: 9, y1: 5, x2: 9, y2: 1 },
-    { x1: 9, y1: 1, x2: 19, y2: 1 },
-    { x1: 19, y1: 1, x2: 19, y2: 7 },
-    { x1: 19, y1: 7, x2: 5, y2: 7 },
-    { x1: 5, y1: 7, x2: 5, y2: 11 },
-    { x1: 5, y1: 11, x2: 17, y2: 11 },
-    { x1: 17, y1: 11, x2: 17, y2: 15 },
-    { x1: 17, y1: 15, x2: 3, y2: 15 },
-    { x1: 3, y1: 15, x2: 3, y2: 19 },
-    { x1: 3, y1: 19, x2: 19, y2: 19 },
-  ];
-
-  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
-  openStartExit(grid, gridWidth, gridHeight);
-  return grid;
-}
-
-function buildLevel19Grid(gridWidth: number, gridHeight: number): Grid {
-  const segments: GridSegment[] = [
-    { x1: 1, y1: 1, x2: 1, y2: 7 },
-    { x1: 1, y1: 7, x2: 11, y2: 7 },
-    { x1: 11, y1: 7, x2: 11, y2: 1 },
-    { x1: 11, y1: 1, x2: 19, y2: 1 },
-    { x1: 19, y1: 1, x2: 19, y2: 9 },
-    { x1: 19, y1: 9, x2: 7, y2: 9 },
-    { x1: 7, y1: 9, x2: 7, y2: 13 },
-    { x1: 7, y1: 13, x2: 15, y2: 13 },
-    { x1: 15, y1: 13, x2: 15, y2: 17 },
-    { x1: 15, y1: 17, x2: 3, y2: 17 },
-    { x1: 3, y1: 17, x2: 3, y2: 19 },
-    { x1: 3, y1: 19, x2: 19, y2: 19 },
-  ];
-
-  const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
-  openStartExit(grid, gridWidth, gridHeight);
-  return grid;
-}
-
-function buildLevel20Grid(gridWidth: number, gridHeight: number): Grid {
-  const segments: GridSegment[] = [
-    { x1: 1, y1: 1, x2: 1, y2: 7 },
-    { x1: 1, y1: 7, x2: 13, y2: 7 },
-    { x1: 13, y1: 7, x2: 13, y2: 1 },
-    { x1: 13, y1: 1, x2: 19, y2: 1 },
-    { x1: 19, y1: 1, x2: 19, y2: 9 },
-    { x1: 19, y1: 9, x2: 9, y2: 9 },
-    { x1: 9, y1: 9, x2: 9, y2: 15 },
-    { x1: 9, y1: 15, x2: 17, y2: 15 },
-    { x1: 17, y1: 15, x2: 17, y2: 19 },
-    { x1: 17, y1: 19, x2: 3, y2: 19 },
-    { x1: 3, y1: 19, x2: 3, y2: 11 },
-    { x1: 3, y1: 11, x2: 7, y2: 11 },
-    { x1: 7, y1: 11, x2: 7, y2: 13 },
-    { x1: 7, y1: 13, x2: 15, y2: 13 },
-    { x1: 15, y1: 13, x2: 15, y2: 17 },
-    { x1: 15, y1: 17, x2: 5, y2: 17 },
-    { x1: 5, y1: 17, x2: 5, y2: 19 },
-    { x1: 5, y1: 19, x2: 19, y2: 19 },
   ];
 
   const grid = buildGridFromSegments(gridWidth, gridHeight, segments);
