@@ -1050,61 +1050,67 @@ export function GameScreen() {
                   className="fixed inset-0 flex items-center justify-center p-4"
                   style={{ zIndex: 2147483647, position: 'fixed', inset: 0 }}
                 >
-                  <div className="w-full max-w-[280px] text-center">
+                  <div className="w-full max-w-[320px]">
                     <div
-                      className="relative px-5 pt-5 pb-4 border"
+                      className="relative px-6 pt-6 pb-5 border text-center backdrop-blur-xl"
                       style={{
-                        backgroundColor: '#202020',
-                        borderColor: '#2a2a2a',
-                        borderRadius: '14px',
-                        boxShadow: '0 12px 28px rgba(0,0,0,0.45)',
+                        backgroundColor: 'rgba(20, 20, 24, 0.72)',
+                        borderColor: 'rgba(255,255,255,0.08)',
+                        borderRadius: '18px',
+                        boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
                       }}
                     >
-                      <div className="text-[#e6e6e6] font-semibold text-base tracking-tight">Duraklatıldı</div>
-                      <div className="text-[#cfcfcf] text-[11px] mt-1">Kaldığın yerden devam edebilirsin.</div>
+                      <div className="text-white font-semibold text-[24px] tracking-tight">Duraklatıldı</div>
+                      <div className="text-white text-[16px] mt-1">
+                        Kaldığın yerden devam edebilirsin.
+                      </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-2">
+                      <div className="mt-5 grid grid-cols-2 gap-3">
                         <button
                           onClick={handleResume}
-                          className="py-2.5 rounded-xl font-black"
+                          className="h-12 rounded-2xl font-black flex items-center justify-center gap-2"
                           style={{
-                            backgroundColor: '#f2f2f2',
-                            color: '#2b2b2b',
-                            boxShadow: '0 8px 18px rgba(0,0,0,0.22)',
-                          }}
-                        >
-                          Devam Et
-                        </button>
-                        <button
-                          onClick={handleRestartLevel}
-                          aria-label="Yeniden Başla"
-                          title="Yeniden Başla"
-                          className="py-2.5 rounded-xl font-bold flex items-center justify-center"
-                          style={{
-                            backgroundColor: '#d0d3d8',
-                            color: '#2f2f2f',
-                            border: '1px solid #b0b6bc',
+                            backgroundColor: '#f5f5f5',
+                            color: '#1f1f1f',
+                            boxShadow: '0 10px 22px rgba(0,0,0,0.2)',
                           }}
                         >
                           <img
-                            src="/icons/yeniden-baslat-ikonu.png"
+                            src="/icons/devam-et-ikonu.png"
                             alt=""
                             className="w-8 h-8 object-contain"
+                            style={{ transform: 'translate(-2px, 2px)' }}
                             aria-hidden="true"
                           />
+                          <span className="text-[#1f1f1f]">Devam Et</span>
                         </button>
                         <button
-                          onClick={handlePauseMenu}
-                          className="py-2.5 rounded-xl font-bold"
+                          onClick={handleRestartLevel}
+                          className="h-12 rounded-2xl font-semibold flex items-center justify-center gap-2"
                           style={{
-                            backgroundColor: '#e0c9c9',
-                            color: '#3a2e2e',
-                            border: '1px solid #c2aaaa',
+                            backgroundColor: '#d8dce2',
+                            color: '#2b2f36',
+                            border: '1px solid rgba(0,0,0,0.12)',
                           }}
                         >
-                          Menüye Dön
+                          <span className="text-lg leading-none">↻</span>
+                          <span>Yeniden Başlat</span>
                         </button>
                       </div>
+
+                      <button
+                        onClick={handlePauseMenu}
+                        className="mt-4 h-14 w-full rounded-2xl font-semibold flex items-center justify-center gap-2"
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.16)',
+                          color: '#f0f0f0',
+                          border: '1px solid rgba(255,255,255,0.22)',
+                          boxShadow: '0 8px 20px rgba(0,0,0,0.22)',
+                        }}
+                      >
+                        <span className="text-lg leading-none">🚪</span>
+                        <span>Menüye Dön</span>
+                      </button>
                     </div>
                   </div>
                 </motion.div>
