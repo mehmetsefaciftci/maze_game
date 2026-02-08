@@ -116,6 +116,8 @@ export function GameScreen() {
   const [kumIntroOpen, setKumIntroOpen] = useState(false);
   const mazeSlotRef = useRef<HTMLDivElement | null>(null);
   const [mazeScale, setMazeScale] = useState(1);
+  const prevKumLevelRef = useRef<number | null>(null);
+  const prevKumHistoryLenRef = useRef<number>(0);
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -178,7 +180,7 @@ export function GameScreen() {
     if (themeKey !== activeThemeKey) setTheme(activeThemeKey);
   }, [activeThemeKey, setTheme, themeKey]);
 
-  // Kum stage intro (show every time kum stage opens or restarts)
+  // Kum stage intro (only on first enter or restart; not on auto-advance)
   useEffect(() => {
     if (screen !== 'game') {
       setKumIntroOpen(false);
@@ -186,12 +188,25 @@ export function GameScreen() {
     }
     const isFreshStart =
       state.status === 'playing' && state.history.length === 0 && state.movesLeft === state.maxMoves;
-    if (currentStage === 'kum' && isFreshStart) {
+    if (currentStage !== 'kum' || !isFreshStart) {
+      setKumIntroOpen(false);
+      return;
+    }
+    const prevLevel = prevKumLevelRef.current;
+    const prevHistoryLen = prevKumHistoryLenRef.current;
+    const isFirstEnter = prevLevel !== state.level;
+    const isRestart = prevLevel === state.level && prevHistoryLen > 0;
+    if (isFirstEnter || isRestart) {
       setKumIntroOpen(true);
       return;
     }
     setKumIntroOpen(false);
-  }, [screen, currentStage, state.status, state.history.length, state.movesLeft, state.maxMoves]);
+  }, [screen, currentStage, state.status, state.history.length, state.movesLeft, state.maxMoves, state.level]);
+
+  useEffect(() => {
+    prevKumLevelRef.current = state.level;
+    prevKumHistoryLenRef.current = state.history.length;
+  }, [state.level, state.history.length]);
 
   // Boot: load logged user (if exists)
   useEffect(() => {

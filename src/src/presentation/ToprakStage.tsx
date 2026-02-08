@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { Coins, Mountain } from 'lucide-react';
@@ -27,16 +27,28 @@ export function ToprakStage({
   mazeSlotRef,
 }: ToprakStageProps) {
   const [showIntro, setShowIntro] = useState(false);
+  const prevLevelRef = useRef<number | null>(null);
+  const prevHistoryLenRef = useRef<number>(0);
 
   useEffect(() => {
-    const key = 'maze_toprak_intro_seen_v4';
-    if (window.localStorage.getItem(key)) return;
-    setShowIntro(true);
-  }, []);
+    if (gameState.status !== 'playing') return;
+    const isFreshStart = gameState.history.length === 0 && gameState.movesLeft === gameState.maxMoves;
+    if (!isFreshStart) return;
+    const prevLevel = prevLevelRef.current;
+    const prevHistoryLen = prevHistoryLenRef.current;
+    const isFirstEnter = prevLevel !== gameState.level;
+    const isRestart = prevLevel === gameState.level && prevHistoryLen > 0;
+    if (isFirstEnter || isRestart) {
+      setShowIntro(true);
+    }
+  }, [gameState.status, gameState.history.length, gameState.movesLeft, gameState.maxMoves, gameState.level]);
+
+  useEffect(() => {
+    prevLevelRef.current = gameState.level;
+    prevHistoryLenRef.current = gameState.history.length;
+  }, [gameState.level, gameState.history.length]);
 
   const handleCloseIntro = () => {
-    const key = 'maze_toprak_intro_seen_v4';
-    window.localStorage.setItem(key, '1');
     setShowIntro(false);
   };
 
