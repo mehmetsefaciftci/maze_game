@@ -1,23 +1,27 @@
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { db } from "./services/firebase";
 
-import { ensureGuestAuth } from "./services/auth";
-import { upsertUser } from "./services/userStore";
+/**
+ * users/{uid} dokümanını:
+ * - yoksa oluşturur
+ * - varsa lastSeenAt günceller
+ */
+export async function upsertUser(uid: string) {
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
 
-(async () => {
-  try {
-    const user = await ensureGuestAuth();
-
-    if (!user) {
-      throw new Error("Firebase user is null (guest auth failed)");
-    }
-
-    await upsertUser(user.uid);
-    console.log("✅ Firebase guest uid:", user.uid);
-  } catch (e) {
-    console.error("❌ Firebase init error:", e);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      createdAt: serverTimestamp(),
+      lastSeenAt: serverTimestamp(),
+      currentLevel: 1,
+      completedLevels: [],
+    });
+  } else {
+    await updateDoc(ref, {
+      lastSeenAt: serverTimestamp(),
+    });
   }
-})();
 
-createRoot(document.getElementById("root")!).render(<App />);
+  return ref;
+}
