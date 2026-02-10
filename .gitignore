@@ -23,3 +23,19 @@ android/.gradle/
 android/**/build/
 android/captures/
 android/local.properties
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Android signing / keys
+*.jks
+*.keystore
+*.p12
+key.properties
+
+# Capacitor / Android misc
+android/.idea/
+android/*.iml
+
