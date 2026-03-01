@@ -18,16 +18,17 @@ import { useReducer, useEffect, useRef, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { TouchEvent } from 'react';
 import { motion } from 'motion/react';
-import { Coins, Lock, Zap } from 'lucide-react';
 import { gameReducer, createLevel } from '../game/reducer';
 import { findSoftRegenSeed } from '../game/generator';
-import { getGridForRender, canUndo, getProgress } from '../game/selectors';
+import { getGridForRender, canUndo } from '../game/selectors';
 import { type Direction, MAX_LEVEL, type GameStatus } from '../game/types';
 import { THEMES, THEME_KEYS, getThemeForLevel, type ThemeKey } from '../themes';
 import { useTheme } from '../themes/ThemeProvider';
 import { MazeGrid } from './MazeGrid';
 import { BuzStage } from './BuzStage';
 import { ToprakStage } from './ToprakStage';
+import { EnergyBar } from './hud/EnergyBar';
+import { InGameHud } from './hud/InGameHud';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'world' | 'stages' | 'game';
@@ -330,7 +331,6 @@ export function GameScreen() {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const grid = useMemo(() => getGridForRender(state), [state]);
   const canUndoMove = useMemo(() => canUndo(state), [state]);
-  const progress = useMemo(() => getProgress(state), [state]);
   const isGameActive = screen === 'game' && state.status === 'playing' && !paused && !inputLocked;
   const isFinalLevel = state.level >= MAX_LEVEL;
   const currentStage = useMemo(() => getThemeForLevel(state.level), [state.level]);
@@ -908,20 +908,6 @@ export function GameScreen() {
   const energyTimerText =
     liveProgress.energy >= ENERGY_MAX ? 'Enerji dolu' : `+1 enerji: ${formatEnergyCountdown(energyMsUntilNext)}`;
   const energyTimerCompact = liveProgress.energy >= ENERGY_MAX ? 'FULL' : formatEnergyCountdown(energyMsUntilNext);
-  const energyPercent = Math.max(0, Math.min(100, Math.round((liveProgress.energy / ENERGY_MAX) * 100)));
-  const collectedColors = useMemo(() => {
-    const set = new Set<string>();
-    for (const coin of state.coins) {
-      const key = `${coin.position.x},${coin.position.y}`;
-      if (state.collectedCoins.has(key)) set.add(coin.color);
-    }
-    return set;
-  }, [state.coins, state.collectedCoins]);
-  const remainingCoins = Math.max(0, state.coins.length - state.collectedCoins.size);
-  const remainingLockedDoors = useMemo(
-    () => state.doors.filter((door) => !collectedColors.has(door.color)).length,
-    [state.doors, collectedColors]
-  );
   const stageStats = useMemo(
     () =>
       STAGES.map((stage) => {
@@ -946,6 +932,12 @@ export function GameScreen() {
   const dailyDoorsPct = Math.max(0, Math.min(100, Math.round((daily.progress.doorsOpened / DAILY_TARGETS.doors) * 100)));
   const dailyBuzPct = Math.max(0, Math.min(100, Math.round((daily.progress.buzSpeedWins / DAILY_TARGETS.buzWins) * 100)));
   const weeklyLevelPct = Math.max(0, Math.min(100, Math.round((weekly.progress.levelWins / WEEKLY_TARGETS.levels) * 100)));
+  const hudScore = useMemo(() => {
+    const base = state.level * 120;
+    const coinScore = state.collectedCoins.size * 180;
+    const efficiency = Math.max(0, state.movesLeft) * 22;
+    return base + coinScore + efficiency;
+  }, [state.level, state.collectedCoins.size, state.movesLeft]);
 
   useEffect(() => {
     if (state.status === 'playing') {
@@ -1080,104 +1072,13 @@ export function GameScreen() {
         `}
           </style>
         )}
-        {user && screen !== 'auth' && (
-          <div className="absolute top-3 right-3 z-50 flex flex-col items-end gap-2">
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.2 }}
-              className="relative overflow-hidden rounded-2xl border border-cyan-200/50 bg-[linear-gradient(135deg,rgba(12,26,46,0.92),rgba(25,75,78,0.88))] px-2.5 py-2 text-white shadow-[0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-xl min-w-[150px]"
-            >
-              <div
-                className="pointer-events-none absolute left-0 top-0 h-[48%] w-full"
-                style={{
-                  background:
-                    'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 55%, rgba(255,255,255,0) 100%)',
-                }}
-              />
-              <div className="pointer-events-none absolute -right-7 -top-7 h-16 w-16 rounded-full bg-cyan-300/20 blur-xl" />
-              <div className="relative flex items-center justify-between gap-1.5">
-                <motion.span
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400/25 text-cyan-100 border border-cyan-200/50 shadow-[0_0_14px_rgba(34,211,238,0.45)]"
-                >
-                  <Zap className="h-4 w-4" />
-                </motion.span>
-                <div className="rounded-lg bg-black/30 border border-white/20 px-2 py-0.5 shadow-inner shadow-black/30">
-                  <div className="text-base font-black tabular-nums tracking-tight text-cyan-50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]">
-                    {liveProgress.energy}/{ENERGY_MAX}
-                  </div>
-                </div>
-                <div className="rounded-md border border-cyan-100/45 bg-gradient-to-b from-cyan-300 to-blue-500 px-1.5 py-[1px] text-[11px] font-black text-white shadow-[0_4px_10px_rgba(0,0,0,0.32)]">
-                  +
-                </div>
-              </div>
-              <div className="relative mt-2 h-[6px] overflow-hidden rounded-full border border-cyan-100/25 bg-black/40">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${energyPercent}%`,
-                    background: 'linear-gradient(90deg, #67e8f9 0%, #22d3ee 45%, #38bdf8 100%)',
-                    boxShadow: '0 0 10px rgba(56, 189, 248, 0.85)',
-                  }}
-                  animate={{ opacity: [0.92, 1, 0.92] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-                />
-              </div>
-              <div className="mt-1 flex items-center justify-between">
-                <div className="text-[9px] font-black tracking-[0.18em] text-cyan-100/75">ENERGY</div>
-                <div className="rounded-md border border-cyan-100/20 bg-black/35 px-1.5 py-[2px] text-[11px] font-extrabold tabular-nums text-cyan-50">
-                  {energyTimerCompact}
-                </div>
-              </div>
-            </motion.div>
-            {energyNotice && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="rounded-xl border border-amber-200/45 bg-amber-500/18 px-3 py-1.5 text-[11px] font-semibold text-amber-100 backdrop-blur-md"
-              >
-                {energyNotice}
-              </motion.div>
-            )}
-          </div>
-        )}
-        {screen === 'game' && (
-          <div className="absolute top-3 left-3 right-3 z-40 pointer-events-none">
-            <div className="mx-auto max-w-md rounded-2xl border border-white/25 bg-black/35 backdrop-blur-md px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)]">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-[92px]">
-                  <div className="text-[11px] font-black tracking-wide text-white/90">Goals</div>
-                  <div className="mt-1 space-y-1 text-[12px] font-bold tabular-nums">
-                    <div className="flex items-center gap-1.5 text-white/90">
-                      <Coins className="h-3.5 w-3.5 text-yellow-300" />
-                      <span>{remainingCoins}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-white/90">
-                      <Lock className="h-3.5 w-3.5 text-sky-200" />
-                      <span>{remainingLockedDoors}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-0.5 text-center">
-                  <div className="text-[12px] font-black text-white/95">Seviye {state.level}</div>
-                  <div className="text-[10px] font-semibold text-white/70">
-                    {currentStage.toUpperCase()}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-[11px] font-black text-white/90">Moves</div>
-                  <div className="mt-1 inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-lime-200/80 bg-gradient-to-b from-lime-400 to-emerald-600 text-xl font-black tabular-nums text-white shadow-[0_6px_16px_rgba(0,0,0,0.35)]">
-                    {state.movesLeft}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {user && screen !== 'auth' && (screen !== 'game' || isIceStage || isToprakStage) && (
+          <EnergyBar
+            currentEnergy={liveProgress.energy}
+            maxEnergy={ENERGY_MAX}
+            timerLabel={energyTimerCompact}
+            notice={energyNotice}
+          />
         )}
         {/* Animated background stars */}
       {!(screen === 'game' && (isIceStage || isToprakStage)) && (
@@ -1500,86 +1401,18 @@ export function GameScreen() {
             />
           ) : (
             <>
-              <div className="px-4 py-4 relative z-10">
-                <div className="relative z-10 max-w-md mx-auto space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                      style={{ boxShadow: '0 0 25px rgba(124, 58, 237, 0.5)' }}
-                    >
-                      <div className="text-xs font-bold opacity-80">SEVİYE</div>
-                      <div className="text-2xl font-black tabular-nums">{state.level}</div>
-                    </motion.div>
-
-                    {state.coins.length > 0 && (
-                      <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="bg-gradient-to-br from-amber-500 to-yellow-600 text-white px-4 py-2 rounded-2xl shadow-2xl relative flex items-center gap-2"
-                        style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.5)' }}
-                      >
-                        <Coins className="w-5 h-5" strokeWidth={2.5} />
-                        <div className="text-xl font-black tabular-nums">
-                          {state.collectedCoins.size}/{state.coins.length}
-                        </div>
-                      </motion.div>
-                    )}
-
-                    <motion.div
-                      key={state.movesLeft}
-                      initial={{ scale: 1.3, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="flex-1 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 text-white px-4 py-2 rounded-2xl shadow-2xl relative"
-                      style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.5)' }}
-                    >
-                      <div className="text-xs font-bold opacity-80">KALAN HAMLE</div>
-                      <div className="text-2xl font-black tabular-nums">{state.movesLeft}</div>
-                    </motion.div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handlePauseToggle}
-                        aria-label="Duraklat"
-                        title="Duraklat"
-                        className="bg-white/10 text-white rounded-2xl border border-white/20 w-[64px] h-[64px] flex items-center justify-center p-0"
-                      >
-                        <img
-                          src="/icons/duraklat-ikonu.png"
-                          alt=""
-                          className="w-[40px] h-[40px] object-contain"
-                          style={{ transform: 'translate(-2px, 2px)' }}
-                          aria-hidden="true"
-                        />
-                      </button>
-                      <button
-                        onClick={handleRestartLevel}
-                        aria-label="Yeniden Başla"
-                        title="Yeniden Başla"
-                        className="bg-white/10 text-white rounded-2xl border border-white/20 w-[64px] h-[64px] flex items-center justify-center p-0"
-                      >
-                        <img
-                          src="/icons/yeniden-baslat-ikonu.png"
-                          alt=""
-                          className="w-[40px] h-[40px] object-contain"
-                          style={{ transform: 'translate(0, 2px)' }}
-                          aria-hidden="true"
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-600"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <InGameHud
+                level={state.level}
+                movesLeft={state.movesLeft}
+                coinsCollected={state.collectedCoins.size}
+                coinsTotal={state.coins.length}
+                score={hudScore}
+                currentEnergy={liveProgress.energy}
+                maxEnergy={ENERGY_MAX}
+                energyTimerLabel={energyTimerCompact}
+                energyNotice={energyNotice}
+                onPause={handlePauseToggle}
+              />
 
               <div className="flex-1 min-h-0 w-full p-4 relative z-10 flex items-center justify-center">
                 <motion.div
@@ -1644,73 +1477,52 @@ export function GameScreen() {
                   }}
                 />
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0, scale: 0.9, y: 24 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.28, ease: 'easeOut' }}
                   className="fixed inset-0 flex items-center justify-center p-4"
                   style={{ zIndex: 2147483647, position: 'fixed', inset: 0 }}
                 >
-                  <div className="w-full max-w-[320px]">
-                    <div
-                      className="relative px-6 pt-6 pb-5 border text-center backdrop-blur-xl"
-                      style={{
-                        backgroundColor: 'rgba(20, 20, 24, 0.72)',
-                        borderColor: 'rgba(255,255,255,0.08)',
-                        borderRadius: '18px',
-                        boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
-                      }}
-                    >
-                      <div className="text-white font-semibold text-[24px] tracking-tight">Duraklatıldı</div>
-                      <div className="text-white text-[16px] mt-1">
-                        Kaldığın yerden devam edebilirsin.
-                      </div>
+                  <div className="w-full max-w-[360px]">
+                    <div className="relative overflow-hidden rounded-[26px] border border-cyan-100/25 bg-[linear-gradient(170deg,rgba(7,14,33,0.86),rgba(23,14,42,0.84),rgba(9,31,49,0.84))] px-6 pt-6 pb-5 text-center backdrop-blur-2xl shadow-[0_18px_46px_rgba(0,0,0,0.42)]">
+                      <div className="pointer-events-none absolute -top-16 -right-14 h-44 w-44 rounded-full bg-cyan-300/25 blur-3xl" />
+                      <div className="pointer-events-none absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-fuchsia-400/20 blur-3xl" />
 
-                      <div className="mt-5 grid grid-cols-2 gap-3">
-                        <button
-                          onClick={handleResume}
-                          className="h-12 rounded-2xl font-black flex items-center justify-center gap-2"
-                          style={{
-                            backgroundColor: '#f5f5f5',
-                            color: '#1f1f1f',
-                            boxShadow: '0 10px 22px rgba(0,0,0,0.2)',
-                          }}
-                        >
-                          <img
-                            src={`${assetBase}icons/devam-et-ikonu.png`}
-                            alt=""
-                            className="w-8 h-8 object-contain"
-                            style={{ transform: 'translate(-2px, 2px)' }}
-                            aria-hidden="true"
-                          />
-                          <span className="text-[#1f1f1f]">Devam Et</span>
-                        </button>
-                        <button
-                          onClick={handleRestartLevel}
-                          className="h-12 rounded-2xl font-semibold flex items-center justify-center gap-2"
-                          style={{
-                            backgroundColor: '#d8dce2',
-                            color: '#2b2f36',
-                            border: '1px solid rgba(0,0,0,0.12)',
-                          }}
-                        >
-                          <span className="text-lg leading-none">↻</span>
-                          <span>Yeniden Başlat</span>
-                        </button>
-                      </div>
+                      <div className="relative text-white font-black text-[26px] tracking-tight">Paused</div>
+                      <div className="relative text-white/75 text-[15px] mt-1">Run is safe. Resume when ready.</div>
 
-                      <button
-                        onClick={handlePauseMenu}
-                        className="mt-4 h-14 w-full rounded-2xl font-semibold flex items-center justify-center gap-2"
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.16)',
-                          color: '#f0f0f0',
-                          border: '1px solid rgba(255,255,255,0.22)',
-                          boxShadow: '0 8px 20px rgba(0,0,0,0.22)',
-                        }}
+                      <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleResume}
+                        className="relative mt-5 h-14 w-full rounded-2xl font-black text-[17px] text-white flex items-center justify-center gap-2 border border-cyan-100/40 bg-[linear-gradient(90deg,#22d3ee,#3b82f6,#6366f1)] shadow-[0_10px_24px_rgba(56,189,248,0.34)]"
                       >
-                        <span className="text-lg leading-none">🚪</span>
-                        <span>Menüye Dön</span>
-                      </button>
+                        <img
+                          src={`${assetBase}icons/devam-et-ikonu.png`}
+                          alt=""
+                          className="w-8 h-8 object-contain"
+                          style={{ transform: 'translate(-2px, 2px)' }}
+                          aria-hidden="true"
+                        />
+                        <span>Continue</span>
+                      </motion.button>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleRestartLevel}
+                          className="h-12 rounded-2xl font-semibold text-white/95 border border-white/25 bg-white/12 backdrop-blur-sm shadow-[0_6px_14px_rgba(0,0,0,0.22)]"
+                        >
+                          Restart
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handlePauseMenu}
+                          className="h-12 rounded-2xl font-semibold text-rose-100 border border-rose-200/35 bg-rose-500/18 backdrop-blur-sm shadow-[0_6px_14px_rgba(0,0,0,0.22)]"
+                        >
+                          Quit
+                        </motion.button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

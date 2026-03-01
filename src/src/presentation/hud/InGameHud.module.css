@@ -1,0 +1,194 @@
+.overlay {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  z-index: 45;
+  pointer-events: none;
+  padding: 0 12px;
+}
+
+.container {
+  margin: 0 auto;
+  width: min(100%, 430px);
+  border-radius: 22px;
+  border: 1px solid rgba(210, 230, 255, 0.28);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03)),
+    linear-gradient(180deg, rgba(10, 16, 35, 0.5), rgba(6, 10, 22, 0.38));
+  backdrop-filter: blur(12px) saturate(110%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  padding: 10px;
+  pointer-events: auto;
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.leftCluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scoreCard {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(9, 14, 27, 0.58), rgba(7, 11, 23, 0.38));
+  padding: 6px 10px;
+  min-width: 82px;
+}
+
+.scoreLabel {
+  color: rgba(203, 230, 255, 0.78);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.scoreValue {
+  color: #f4fbff;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.coinCard {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 232, 177, 0.42);
+  background: linear-gradient(180deg, rgba(54, 38, 9, 0.58), rgba(33, 24, 8, 0.4));
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coinIcon {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff2a8 0%, #fbbf24 55%, #f59e0b 100%);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.42);
+  animation: coinPulse 1.8s ease-in-out infinite;
+}
+
+.coinValue {
+  color: #fff8dc;
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.rightCluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.levelChip {
+  border-radius: 999px;
+  border: 1px solid rgba(196, 236, 255, 0.45);
+  background: linear-gradient(180deg, rgba(26, 43, 82, 0.7), rgba(19, 31, 57, 0.58));
+  color: #dbeafe;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.movesCard {
+  border-radius: 999px;
+  min-width: 54px;
+  height: 54px;
+  border: 1px solid rgba(188, 248, 220, 0.65);
+  background: linear-gradient(180deg, #34d399, #059669);
+  color: #f0fff8;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
+}
+
+.pauseBtn {
+  width: 50px;
+  height: 50px;
+  border-radius: 999px;
+  border: 1px solid rgba(190, 231, 255, 0.52);
+  background:
+    linear-gradient(160deg, rgba(150, 225, 255, 0.22), rgba(120, 150, 255, 0.12)),
+    linear-gradient(180deg, rgba(24, 33, 69, 0.86), rgba(15, 22, 50, 0.88));
+  color: #e8f3ff;
+  font-weight: 900;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 140ms ease, box-shadow 180ms ease, border-color 180ms ease, filter 180ms ease;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
+}
+
+.pauseBtn:hover {
+  border-color: rgba(196, 236, 255, 0.78);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.25), 0 0 12px rgba(96, 165, 250, 0.34);
+}
+
+.pauseBtn:active {
+  transform: scale(0.95);
+  filter: brightness(1.05);
+}
+
+.energySlot {
+  margin-top: 8px;
+}
+
+@keyframes coinPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.07);
+    filter: brightness(1.08);
+  }
+}
+
+@media (max-width: 420px) {
+  .container {
+    padding: 8px;
+  }
+
+  .scoreValue {
+    font-size: 18px;
+  }
+
+  .coinValue {
+    font-size: 16px;
+  }
+
+  .movesCard {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .pauseBtn {
+    width: 46px;
+    height: 46px;
+    font-size: 18px;
+  }
+}
