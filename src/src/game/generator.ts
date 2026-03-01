@@ -4,7 +4,7 @@
  * Guarantees single solution path from start to exit
  */
 
-import type { MazeGrid, Position, LevelParams, Coin, Door, CoinColor } from './types';
+import type { MazeGrid, Position, LevelParams, Coin, Door, CoinColor, DifficultyProfile } from './types';
 import { getStageTheme } from './stage';
 import { SeededRandom } from './utils/seed';
 
@@ -220,6 +220,7 @@ export function generateMaze(params: LevelParams): {
   doors: Door[];
   icyCells: Set<string>;
   sandCheckpoint: string | null;
+  difficulty: DifficultyProfile;
 } {
   const { gridSize, seed } = params;
   const rng = new SeededRandom(seed);
@@ -307,7 +308,7 @@ export function generateMaze(params: LevelParams): {
 
   const pathCacheKey = `${seed}|${gridWidth}x${gridHeight}|${startPos.x},${startPos.y}|${exitPos.x},${exitPos.y}`;
 
-  const inferredLevel = inferLevelFromSeed(seed);
+  const inferredLevel = params.level ?? inferLevelFromSeed(seed);
   if (!specialBySeed && inferredLevel >= 22) {
     const slidePath = findShortestSlidePathPositions(grid, startPos, exitPos);
     if (slidePath.length === 0) {
@@ -369,7 +370,114 @@ export function generateMaze(params: LevelParams): {
       rng,
       inferredLevel
     ),
+    difficulty: analyzeDifficulty(
+      grid,
+      startPos,
+      exitPos,
+      solutionLength,
+      coins,
+      doors,
+      icyCells,
+      inferredLevel
+    ),
   };
+}
+
+function analyzeDifficulty(
+  grid: Grid,
+  startPos: Position,
+  exitPos: Position,
+  solutionLength: number,
+  coins: Coin[],
+  doors: Door[],
+  icyCells: Set<string>,
+  level: number
+): DifficultyProfile {
+  const pathCells: Position[] = [];
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[0].length; x++) {
+      if (grid[y][x] === 'path') pathCells.push({ x, y });
+    }
+  }
+  const pathCount = Math.max(1, pathCells.length);
+
+  let deadEnds = 0;
+  const dirs = [
+    { x: 0, y: -1 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: -1, y: 0 },
+  ];
+  for (const cell of pathCells) {
+    if ((cell.x === startPos.x && cell.y === startPos.y) || (cell.x === exitPos.x && cell.y === exitPos.y)) {
+      continue;
+    }
+    let degree = 0;
+    for (const d of dirs) {
+      const nx = cell.x + d.x;
+      const ny = cell.y + d.y;
+      if (ny < 0 || ny >= grid.length || nx < 0 || nx >= grid[0].length) continue;
+      if (grid[ny][nx] === 'path') degree += 1;
+    }
+    if (degree <= 1) deadEnds += 1;
+  }
+
+  const stage = getStageTheme(level);
+  const baseHazards = icyCells.size;
+  const stageHazardBonus =
+    stage === 'buz' ? Math.ceil(pathCount * 0.08) : stage === 'kum' ? Math.ceil(pathCount * 0.06) : stage === 'volkan' ? Math.ceil(pathCount * 0.1) : 0;
+  const hazardCount = baseHazards + stageHazardBonus;
+
+  const deadEndRatio = deadEnds / pathCount;
+  const coinDoorDensity = (coins.length + doors.length) / pathCount;
+  const hazardDensity = hazardCount / pathCount;
+  const solutionNorm = Math.min(1, solutionLength / Math.max(8, pathCount));
+  const score =
+    solutionNorm * 0.45 +
+    Math.min(1, deadEndRatio * 1.8) * 0.25 +
+    Math.min(1, coinDoorDensity * 5) * 0.2 +
+    Math.min(1, hazardDensity * 4) * 0.1;
+
+  return {
+    solutionMoves: solutionLength,
+    deadEndRatio: Number(deadEndRatio.toFixed(3)),
+    coinDoorDensity: Number(coinDoorDensity.toFixed(3)),
+    hazardDensity: Number(hazardDensity.toFixed(3)),
+    score: Number(score.toFixed(3)),
+  };
+}
+
+export function findSoftRegenSeed(
+  level: number,
+  currentSeed: number,
+  currentDifficulty: DifficultyProfile
+): number {
+  const config = getLevelConfig(level);
+  const baseSeed = config.seed;
+  const targetScore = Math.max(0.08, currentDifficulty.score - 0.06);
+
+  let bestSeed = currentSeed;
+  let bestPenalty = Number.POSITIVE_INFINITY;
+
+  for (let i = 1; i <= 40; i++) {
+    const candidateSeed = baseSeed + i * 13;
+    const candidate = generateMaze({ ...config, level, seed: candidateSeed });
+    const d = candidate.difficulty;
+
+    const penalty =
+      Math.abs(d.score - targetScore) * 2.4 +
+      Math.abs(d.solutionMoves - currentDifficulty.solutionMoves) * 0.03 +
+      Math.abs(d.deadEndRatio - currentDifficulty.deadEndRatio) * 1.4 +
+      Math.abs(d.coinDoorDensity - currentDifficulty.coinDoorDensity) * 1.2 +
+      Math.abs(d.hazardDensity - currentDifficulty.hazardDensity) * 0.9;
+
+    if (penalty < bestPenalty) {
+      bestPenalty = penalty;
+      bestSeed = candidateSeed;
+    }
+  }
+
+  return bestSeed;
 }
 
 function getUnvisitedNeighbors(cell: Cell, cells: Cell[][], gridSize: number): Cell[] {

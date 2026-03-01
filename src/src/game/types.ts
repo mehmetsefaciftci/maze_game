@@ -48,6 +48,14 @@ export interface MazeGrid {
   cells: CellType[][];
 }
 
+export interface DifficultyProfile {
+  solutionMoves: number;
+  deadEndRatio: number;
+  coinDoorDensity: number;
+  hazardDensity: number;
+  score: number;
+}
+
 export interface HistoryEntry {
   playerPos: Position;
   movesLeft: number;
@@ -84,9 +92,12 @@ export interface MazeState {
   status: GameStatus;
   history: HistoryEntry[];
   seed: number;
+  baseSeed: number;
+  difficulty: DifficultyProfile;
 }
 
 export interface LevelParams {
+  level?: number;
   gridSize: number;
   complexity: number; // 0-1, affects dead ends
   seed: number;

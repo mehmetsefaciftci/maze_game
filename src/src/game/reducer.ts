@@ -17,12 +17,14 @@ function getIceTimeLimit(level: number): number | null {
  * Create initial game state for a level
  */
 export function createLevel(level: number, seed?: number): MazeState {
-  const config = getLevelConfig(level);
+  const baseConfig = getLevelConfig(level);
+  const config = { ...baseConfig };
   if (seed !== undefined) {
     config.seed = seed;
   }
+  config.level = level;
 
-  const { grid, startPos, exitPos, solutionLength, coins, doors, icyCells, sandCheckpoint } =
+  const { grid, startPos, exitPos, solutionLength, coins, doors, icyCells, sandCheckpoint, difficulty } =
     generateMaze(config);
   const maxMoves = calculateMoveLimit(solutionLength, level);
   const maxTime = getIceTimeLimit(level);
@@ -51,6 +53,8 @@ export function createLevel(level: number, seed?: number): MazeState {
     status: 'playing',
     history: [],
     seed: config.seed,
+    baseSeed: baseConfig.seed,
+    difficulty,
   };
 }
 

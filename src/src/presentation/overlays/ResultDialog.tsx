@@ -11,6 +11,8 @@ interface ResultDialogProps {
   status: GameStatus;
   level: number;
   movesUsed: number;
+  stars?: number;
+  shardGain?: number;
   isFinalLevel: boolean;
   onRestart: () => void;
   onNextLevel: () => void;
@@ -21,6 +23,8 @@ export function ResultDialog({
   status,
   level,
   movesUsed,
+  stars = 0,
+  shardGain = 0,
   isFinalLevel,
   onRestart,
   onNextLevel,
@@ -141,6 +145,17 @@ export function ResultDialog({
             {isWin ? movesUsed : level}
           </div>
         </motion.div>
+
+        {isWin && (
+          <div className="mb-5">
+            <div className="text-2xl tracking-[6px] text-amber-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]">
+              {'★'.repeat(Math.max(0, Math.min(3, stars))).padEnd(3, '☆')}
+            </div>
+            <div className="text-sm font-bold text-white/90 mt-1">
+              {shardGain > 0 ? `+${shardGain} shard kazandın` : 'Bu seviyede yeni yıldız yok'}
+            </div>
+          </div>
+        )}
 
         {/* Buttons */}
         <div className="flex gap-2">

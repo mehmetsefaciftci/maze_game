@@ -18,8 +18,9 @@ import { useReducer, useEffect, useRef, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { TouchEvent } from 'react';
 import { motion } from 'motion/react';
-import { Coins } from 'lucide-react';
+import { Coins, Lock, Zap } from 'lucide-react';
 import { gameReducer, createLevel } from '../game/reducer';
+import { findSoftRegenSeed } from '../game/generator';
 import { getGridForRender, canUndo, getProgress } from '../game/selectors';
 import { type Direction, MAX_LEVEL, type GameStatus } from '../game/types';
 import { THEMES, THEME_KEYS, getThemeForLevel, type ThemeKey } from '../themes';
@@ -29,11 +30,40 @@ import { BuzStage } from './BuzStage';
 import { ToprakStage } from './ToprakStage';
 import { ResultDialog } from './overlays/ResultDialog';
 
-type ScreenState = 'auth' | 'menu' | 'stages' | 'game';
+type ScreenState = 'auth' | 'menu' | 'world' | 'stages' | 'game';
 type StageKey = ThemeKey;
 type UserProgress = {
   completedLevels: number[];
   currentLevel: number;
+  energy: number;
+  energyUpdatedAt: number;
+  levelSeeds: Record<number, number>;
+  failStreakByLevel: Record<number, number>;
+};
+
+type QuestProgress = {
+  levelWins: number;
+  doorsOpened: number;
+  buzSpeedWins: number;
+};
+
+type QuestState = {
+  key: string;
+  progress: QuestProgress;
+  claimed: {
+    dailyLevels: boolean;
+    dailyDoors: boolean;
+    dailyBuz: boolean;
+    weeklyLevels: boolean;
+  };
+};
+
+type MetaProgress = {
+  starsByLevel: Record<number, number>;
+  shard: number;
+  skinToken: number;
+  daily: QuestState;
+  weekly: QuestState;
 };
 
 type AuthUser = {
@@ -42,7 +72,26 @@ type AuthUser = {
 
 const AUTH_USER_KEY = 'maze_auth_user';
 const PROGRESS_PREFIX = 'maze_progress_user_';
+const META_PREFIX = 'maze_meta_user_';
 const MAIN_MENU_THEME_KEY: ThemeKey = 'gezegen';
+const ENERGY_MAX = 10;
+const ENERGY_REFILL_MS = 5 * 60 * 1000;
+const SOFT_REGEN_FAIL_THRESHOLD = 2;
+
+const DAILY_TARGETS = {
+  levels: 10,
+  doors: 3,
+  buzWins: 5,
+};
+
+const WEEKLY_TARGETS = {
+  levels: 30,
+};
+
+function getEnergyCostForLevel(level: number): number {
+  const stage = getThemeForLevel(level);
+  return stage === 'kum' || stage === 'volkan' ? 2 : 1;
+}
 
 const STAGES: { key: StageKey; label: string; startLevel: number; endLevel: number }[] = [
   ...THEME_KEYS.map((key) => ({
@@ -72,14 +121,21 @@ function saveCurrentUser(user: AuthUser | null) {
 }
 
 function defaultProgress(): UserProgress {
-  return { completedLevels: [], currentLevel: 1 };
+  return {
+    completedLevels: [],
+    currentLevel: 1,
+    energy: ENERGY_MAX,
+    energyUpdatedAt: Date.now(),
+    levelSeeds: {},
+    failStreakByLevel: {},
+  };
 }
 
 function loadUserProgress(username: string): UserProgress {
   const raw = window.localStorage.getItem(PROGRESS_PREFIX + username);
   if (!raw) return defaultProgress();
   try {
-    const parsed = JSON.parse(raw) as UserProgress;
+    const parsed = JSON.parse(raw) as Partial<UserProgress>;
 
     const completedLevels = Array.isArray(parsed.completedLevels)
       ? parsed.completedLevels
@@ -90,9 +146,36 @@ function loadUserProgress(username: string): UserProgress {
     const currentLevel = Number.isFinite(parsed.currentLevel)
       ? Math.max(1, Math.min(MAX_LEVEL, parsed.currentLevel))
       : 1;
+    const energy = Number.isFinite(parsed.energy)
+      ? Math.max(0, Math.min(ENERGY_MAX, Math.floor(parsed.energy as number)))
+      : ENERGY_MAX;
+    const energyUpdatedAt = Number.isFinite(parsed.energyUpdatedAt)
+      ? Number(parsed.energyUpdatedAt)
+      : Date.now();
+    const levelSeeds: Record<number, number> = {};
+    if (parsed.levelSeeds && typeof parsed.levelSeeds === 'object') {
+      for (const [k, v] of Object.entries(parsed.levelSeeds)) {
+        const levelKey = Number(k);
+        if (Number.isFinite(levelKey) && Number.isFinite(v)) {
+          levelSeeds[levelKey] = Number(v);
+        }
+      }
+    }
+    const failStreakByLevel: Record<number, number> = {};
+    if (parsed.failStreakByLevel && typeof parsed.failStreakByLevel === 'object') {
+      for (const [k, v] of Object.entries(parsed.failStreakByLevel)) {
+        const levelKey = Number(k);
+        if (Number.isFinite(levelKey) && Number.isFinite(v)) {
+          failStreakByLevel[levelKey] = Math.max(0, Math.floor(Number(v)));
+        }
+      }
+    }
 
     const uniq = Array.from(new Set(completedLevels)).sort((a, b) => a - b);
-    return { completedLevels: uniq, currentLevel };
+    return withRegeneratedEnergy(
+      { completedLevels: uniq, currentLevel, energy, energyUpdatedAt, levelSeeds, failStreakByLevel },
+      Date.now()
+    );
   } catch {
     return defaultProgress();
   }
@@ -104,6 +187,107 @@ function saveUserProgress(username: string, progress: UserProgress) {
 
 function getHighestCompleted(completedLevels: number[]) {
   return completedLevels.length ? Math.max(...completedLevels) : 0;
+}
+
+function withRegeneratedEnergy(progress: UserProgress, now: number): UserProgress {
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const safeEnergy = Math.max(0, Math.min(ENERGY_MAX, Math.floor(progress.energy)));
+  const safeUpdatedAt = Number.isFinite(progress.energyUpdatedAt) ? progress.energyUpdatedAt : safeNow;
+
+  if (safeEnergy >= ENERGY_MAX) {
+    return { ...progress, energy: ENERGY_MAX, energyUpdatedAt: safeUpdatedAt };
+  }
+  if (safeNow <= safeUpdatedAt) {
+    return { ...progress, energy: safeEnergy, energyUpdatedAt: safeUpdatedAt };
+  }
+
+  const gained = Math.floor((safeNow - safeUpdatedAt) / ENERGY_REFILL_MS);
+  if (gained <= 0) {
+    return { ...progress, energy: safeEnergy, energyUpdatedAt: safeUpdatedAt };
+  }
+
+  const nextEnergy = Math.min(ENERGY_MAX, safeEnergy + gained);
+  const nextUpdatedAt = nextEnergy === ENERGY_MAX ? safeNow : safeUpdatedAt + gained * ENERGY_REFILL_MS;
+  return { ...progress, energy: nextEnergy, energyUpdatedAt: nextUpdatedAt };
+}
+
+function getEnergyMsUntilNext(progress: UserProgress, now: number): number {
+  if (progress.energy >= ENERGY_MAX) return 0;
+  const safeNow = Number.isFinite(now) ? now : Date.now();
+  const safeUpdatedAt = Number.isFinite(progress.energyUpdatedAt) ? progress.energyUpdatedAt : safeNow;
+  const elapsed = Math.max(0, safeNow - safeUpdatedAt);
+  const remain = ENERGY_REFILL_MS - (elapsed % ENERGY_REFILL_MS);
+  return remain === 0 ? ENERGY_REFILL_MS : remain;
+}
+
+function formatEnergyCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function getDayKey(ts: number) {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getWeekKey(ts: number) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  return getDayKey(d.getTime());
+}
+
+function emptyQuestState(key: string): QuestState {
+  return {
+    key,
+    progress: { levelWins: 0, doorsOpened: 0, buzSpeedWins: 0 },
+    claimed: { dailyLevels: false, dailyDoors: false, dailyBuz: false, weeklyLevels: false },
+  };
+}
+
+function defaultMeta(now: number): MetaProgress {
+  return {
+    starsByLevel: {},
+    shard: 0,
+    skinToken: 0,
+    daily: emptyQuestState(getDayKey(now)),
+    weekly: emptyQuestState(getWeekKey(now)),
+  };
+}
+
+function loadUserMeta(username: string): MetaProgress {
+  const now = Date.now();
+  const raw = window.localStorage.getItem(META_PREFIX + username);
+  if (!raw) return defaultMeta(now);
+  try {
+    const parsed = JSON.parse(raw) as Partial<MetaProgress>;
+    const base = defaultMeta(now);
+    const daily = parsed.daily?.key === base.daily.key ? parsed.daily : base.daily;
+    const weekly = parsed.weekly?.key === base.weekly.key ? parsed.weekly : base.weekly;
+    return {
+      starsByLevel: parsed.starsByLevel ?? {},
+      shard: Number.isFinite(parsed.shard) ? Math.max(0, Math.floor(parsed.shard as number)) : 0,
+      skinToken: Number.isFinite(parsed.skinToken) ? Math.max(0, Math.floor(parsed.skinToken as number)) : 0,
+      daily,
+      weekly,
+    };
+  } catch {
+    return defaultMeta(now);
+  }
+}
+
+function saveUserMeta(username: string, meta: MetaProgress) {
+  window.localStorage.setItem(META_PREFIX + username, JSON.stringify(meta));
+}
+
+function getStageCostText(stage: StageKey) {
+  return stage === 'kum' || stage === 'volkan' ? '2 Enerji' : '1 Enerji';
 }
 
 export function GameScreen() {
@@ -131,11 +315,17 @@ export function GameScreen() {
   const prevBuzHistoryLenRef = useRef<number>(0);
   const prevGezegenLevelRef = useRef<number | null>(null);
   const prevGezegenHistoryLenRef = useRef<number>(0);
+  const processedLossRef = useRef<string>('');
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
+  const [energyNotice, setEnergyNotice] = useState<string | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const [progressData, setProgressData] = useState<UserProgress>(defaultProgress());
+  const [metaData, setMetaData] = useState<MetaProgress>(() => defaultMeta(Date.now()));
+  const [resultStars, setResultStars] = useState(0);
+  const [resultShardGain, setResultShardGain] = useState(0);
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const grid = useMemo(() => getGridForRender(state), [state]);
@@ -319,10 +509,17 @@ export function GameScreen() {
     if (existing) {
       setUser(existing);
       const loaded = loadUserProgress(existing.username);
+      const loadedMeta = loadUserMeta(existing.username);
       setProgressData(loaded);
-      dispatch({ type: 'LOAD_LEVEL', level: loaded.currentLevel });
+      setMetaData(loadedMeta);
+      dispatch({
+        type: 'LOAD_LEVEL',
+        level: loaded.currentLevel,
+        seed: loaded.levelSeeds[loaded.currentLevel],
+      });
       setScreen('menu');
     } else {
+      setMetaData(defaultMeta(Date.now()));
       setScreen('auth');
     }
   }, []);
@@ -343,21 +540,102 @@ export function GameScreen() {
     if (!user) return;
     if (state.status !== 'won') return;
 
+    const starsEarned = computeStarsForCurrentRun();
+    setResultStars(starsEarned);
+
     setProgressData((prev) => {
       const completed = new Set(prev.completedLevels);
       completed.add(state.level);
 
       const nextCurrent = Math.min(MAX_LEVEL, state.level + 1);
       const next: UserProgress = {
+        ...prev,
         completedLevels: Array.from(completed).sort((a, b) => a - b),
         currentLevel: nextCurrent,
+        failStreakByLevel: { ...prev.failStreakByLevel, [state.level]: 0 },
       };
 
       saveUserProgress(user.username, next);
       return next;
     });
 
-  }, [state.status, state.level, user]);
+    setMetaData((prev) => {
+      const prevStars = prev.starsByLevel[state.level] ?? 0;
+      const nextBest = Math.max(prevStars, starsEarned);
+      const bonusStars = Math.max(0, nextBest - prevStars);
+      const collectedColorSet = new Set<string>();
+      for (const coin of state.coins) {
+        const coinKey = `${coin.position.x},${coin.position.y}`;
+        if (state.collectedCoins.has(coinKey)) collectedColorSet.add(coin.color);
+      }
+      const doorUnlockCount = state.doors.filter((door) => collectedColorSet.has(door.color)).length;
+      const buzFastWin = currentStage === 'buz' && (state.timeLeft ?? 0) > 0 ? 1 : 0;
+
+      const next: MetaProgress = {
+        ...prev,
+        starsByLevel: { ...prev.starsByLevel, [state.level]: nextBest },
+        shard: prev.shard + bonusStars * 3,
+        daily: {
+          ...prev.daily,
+          progress: {
+            levelWins: prev.daily.progress.levelWins + 1,
+            doorsOpened: prev.daily.progress.doorsOpened + doorUnlockCount,
+            buzSpeedWins: prev.daily.progress.buzSpeedWins + buzFastWin,
+          },
+        },
+        weekly: {
+          ...prev.weekly,
+          progress: {
+            ...prev.weekly.progress,
+            levelWins: prev.weekly.progress.levelWins + 1,
+          },
+        },
+      };
+      if (bonusStars > 0) {
+        setResultShardGain(bonusStars * 3);
+      } else {
+        setResultShardGain(0);
+      }
+      saveUserMeta(user.username, next);
+      return next;
+    });
+
+  }, [state.status, state.level, user, state.doors, state.coins, state.collectedCoins, currentStage, state.timeLeft]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (state.status !== 'lost') return;
+
+    const lossKey = `${state.level}-${state.seed}-${state.history.length}-${state.movesLeft}-${state.timeLeft}`;
+    if (processedLossRef.current === lossKey) return;
+    processedLossRef.current = lossKey;
+
+    setProgressData((prev) => {
+      const currentStreak = prev.failStreakByLevel[state.level] ?? 0;
+      const nextStreak = currentStreak + 1;
+      let next: UserProgress = {
+        ...prev,
+        failStreakByLevel: { ...prev.failStreakByLevel, [state.level]: nextStreak },
+      };
+
+      if (nextStreak >= SOFT_REGEN_FAIL_THRESHOLD) {
+        const currentSeed = next.levelSeeds[state.level] ?? state.seed;
+        const softSeed = findSoftRegenSeed(state.level, currentSeed, state.difficulty);
+        if (softSeed !== currentSeed) {
+          next = {
+            ...next,
+            failStreakByLevel: { ...next.failStreakByLevel, [state.level]: 0 },
+            levelSeeds: { ...next.levelSeeds, [state.level]: softSeed },
+          };
+          setEnergyNotice('Seviye dengelemesi aktif: yakın zorlukta yeni seed yüklendi.');
+          dispatch({ type: 'LOAD_LEVEL', level: state.level, seed: softSeed });
+        }
+      }
+
+      saveUserProgress(user.username, next);
+      return next;
+    });
+  }, [user, state.status, state.level, state.seed, state.history.length, state.movesLeft, state.timeLeft, state.difficulty]);
 
   // Keyboard controls
   useEffect(() => {
@@ -478,7 +756,52 @@ export function GameScreen() {
   };
   const handleNextLevel = () => {
     if (isFinalLevel) return;
-    dispatch({ type: 'NEXT_LEVEL' });
+    const nextLevel = Math.min(MAX_LEVEL, state.level + 1);
+    dispatch({ type: 'LOAD_LEVEL', level: nextLevel, seed: progressData.levelSeeds[nextLevel] });
+  };
+
+  const computeStarsForCurrentRun = () => {
+    if (state.status !== 'won') return 0;
+    let stars = 1;
+    if (state.movesLeft >= Math.ceil(state.maxMoves * 0.25)) stars += 1;
+    if (state.maxTime !== null) {
+      if ((state.timeLeft ?? 0) >= Math.ceil(state.maxTime * 0.3)) stars += 1;
+    } else if (state.movesLeft >= Math.ceil(state.maxMoves * 0.55)) {
+      stars += 1;
+    }
+    return Math.min(3, stars);
+  };
+
+  const claimQuestReward = (kind: 'dailyLevels' | 'dailyDoors' | 'dailyBuz' | 'weeklyLevels') => {
+    if (!user) return;
+    setMetaData((prev) => {
+      const next: MetaProgress = {
+        ...prev,
+        daily: { ...prev.daily, claimed: { ...prev.daily.claimed } },
+        weekly: { ...prev.weekly, claimed: { ...prev.weekly.claimed } },
+      };
+
+      if (kind === 'dailyLevels' && canClaimDailyLevels) {
+        next.daily.claimed.dailyLevels = true;
+        next.shard += 10;
+      } else if (kind === 'dailyDoors' && canClaimDailyDoors) {
+        next.daily.claimed.dailyDoors = true;
+        next.shard += 8;
+      } else if (kind === 'dailyBuz' && canClaimDailyBuz) {
+        next.daily.claimed.dailyBuz = true;
+        next.shard += 12;
+        next.skinToken += 1;
+      } else if (kind === 'weeklyLevels' && canClaimWeeklyLevels) {
+        next.weekly.claimed.weeklyLevels = true;
+        next.shard += 30;
+        next.skinToken += 2;
+      } else {
+        return prev;
+      }
+
+      saveUserMeta(user.username, next);
+      return next;
+    });
   };
 
   const handlePauseToggle = () => setPaused((prev) => !prev);
@@ -490,7 +813,7 @@ export function GameScreen() {
 
   const movesUsed = state.maxMoves - state.movesLeft;
 
-  const handleShowStages = () => setStagePopupOpen(true);
+  const handleShowStages = () => setScreen('world');
   const handleBackToMenu = () => {
     setPaused(false);
     setScreen('menu');
@@ -507,15 +830,30 @@ export function GameScreen() {
 
   const handleStartLevel = (level: number) => {
     if (!user) return;
+    setEnergyNotice(null);
+    const now = Date.now();
+    const regenerated = withRegeneratedEnergy(progressData, now);
+    const cost = getEnergyCostForLevel(level);
+    if (regenerated.energy < cost) {
+      setProgressData(regenerated);
+      saveUserProgress(user.username, regenerated);
+      setEnergyNotice(`Yetersiz enerji. ${cost} enerji gerekiyor. ${energyTimerText}`);
+      return;
+    }
+
+    const wasFull = regenerated.energy >= ENERGY_MAX;
+    const levelSeed = regenerated.levelSeeds[level];
+    const spent: UserProgress = {
+      ...regenerated,
+      energy: regenerated.energy - cost,
+      energyUpdatedAt: wasFull ? now : regenerated.energyUpdatedAt,
+    };
+    const next = { ...spent, currentLevel: level };
 
     setPaused(false);
-    dispatch({ type: 'LOAD_LEVEL', level });
-
-    setProgressData((prev) => {
-      const next = { ...prev, currentLevel: level };
-      saveUserProgress(user.username, next);
-      return next;
-    });
+    dispatch({ type: 'LOAD_LEVEL', level, seed: levelSeed });
+    setProgressData(next);
+    saveUserProgress(user.username, next);
 
     setScreen('game');
   };
@@ -524,15 +862,22 @@ export function GameScreen() {
   const doLoginOrRegister = () => {
     const username = usernameInput.trim();
     if (!username) return;
+    setEnergyNotice(null);
 
     const nextUser: AuthUser = { username };
     setUser(nextUser);
     saveCurrentUser(nextUser);
 
     const loaded = loadUserProgress(username);
+    const loadedMeta = loadUserMeta(username);
     setProgressData(loaded);
+    setMetaData(loadedMeta);
 
-    dispatch({ type: 'LOAD_LEVEL', level: loaded.currentLevel });
+    dispatch({
+      type: 'LOAD_LEVEL',
+      level: loaded.currentLevel,
+      seed: loaded.levelSeeds[loaded.currentLevel],
+    });
     setScreen('menu');
   };
 
@@ -540,8 +885,10 @@ export function GameScreen() {
     setUser(null);
     saveCurrentUser(null);
     setProgressData(defaultProgress());
+    setMetaData(defaultMeta(Date.now()));
     dispatch({ type: 'LOAD_LEVEL', level: 1 });
     setUsernameInput('');
+    setEnergyNotice(null);
     setPaused(false);
     setScreen('auth');
   };
@@ -556,10 +903,54 @@ export function GameScreen() {
   const selectedStageRangeText = `Bölüm 1-${selectedStageInfo.endLevel - selectedStageInfo.startLevel + 1}`;
   const theme = THEMES[activeThemeKey];
   const assetBase = import.meta.env.BASE_URL ?? '/';
+  const liveProgress = useMemo(() => withRegeneratedEnergy(progressData, clockNow), [progressData, clockNow]);
+  const energyMsUntilNext = useMemo(() => getEnergyMsUntilNext(liveProgress, clockNow), [liveProgress, clockNow]);
+  const energyTimerText =
+    liveProgress.energy >= ENERGY_MAX ? 'Enerji dolu' : `+1 enerji: ${formatEnergyCountdown(energyMsUntilNext)}`;
+  const energyTimerCompact = liveProgress.energy >= ENERGY_MAX ? 'FULL' : formatEnergyCountdown(energyMsUntilNext);
+  const energyPercent = Math.max(0, Math.min(100, Math.round((liveProgress.energy / ENERGY_MAX) * 100)));
+  const collectedColors = useMemo(() => {
+    const set = new Set<string>();
+    for (const coin of state.coins) {
+      const key = `${coin.position.x},${coin.position.y}`;
+      if (state.collectedCoins.has(key)) set.add(coin.color);
+    }
+    return set;
+  }, [state.coins, state.collectedCoins]);
+  const remainingCoins = Math.max(0, state.coins.length - state.collectedCoins.size);
+  const remainingLockedDoors = useMemo(
+    () => state.doors.filter((door) => !collectedColors.has(door.color)).length,
+    [state.doors, collectedColors]
+  );
+  const stageStats = useMemo(
+    () =>
+      STAGES.map((stage) => {
+        const total = stage.endLevel - stage.startLevel + 1;
+        let completed = 0;
+        let stars = 0;
+        for (let lv = stage.startLevel; lv <= stage.endLevel; lv++) {
+          if (completedSet.has(lv)) completed += 1;
+          stars += metaData.starsByLevel[lv] ?? 0;
+        }
+        return { ...stage, total, completed, stars };
+      }),
+    [completedSet, metaData.starsByLevel]
+  );
+  const daily = metaData.daily;
+  const weekly = metaData.weekly;
+  const canClaimDailyLevels = daily.progress.levelWins >= DAILY_TARGETS.levels && !daily.claimed.dailyLevels;
+  const canClaimDailyDoors = daily.progress.doorsOpened >= DAILY_TARGETS.doors && !daily.claimed.dailyDoors;
+  const canClaimDailyBuz = daily.progress.buzSpeedWins >= DAILY_TARGETS.buzWins && !daily.claimed.dailyBuz;
+  const canClaimWeeklyLevels = weekly.progress.levelWins >= WEEKLY_TARGETS.levels && !weekly.claimed.weeklyLevels;
+  const dailyLevelPct = Math.max(0, Math.min(100, Math.round((daily.progress.levelWins / DAILY_TARGETS.levels) * 100)));
+  const dailyDoorsPct = Math.max(0, Math.min(100, Math.round((daily.progress.doorsOpened / DAILY_TARGETS.doors) * 100)));
+  const dailyBuzPct = Math.max(0, Math.min(100, Math.round((daily.progress.buzSpeedWins / DAILY_TARGETS.buzWins) * 100)));
+  const weeklyLevelPct = Math.max(0, Math.min(100, Math.round((weekly.progress.levelWins / WEEKLY_TARGETS.levels) * 100)));
 
   useEffect(() => {
     if (state.status === 'playing') {
       setResultStatus('playing');
+      setResultShardGain(0);
       return;
     }
     if (currentStage === 'buz' && state.status === 'won' && state.lastMoveIcy) {
@@ -600,6 +991,61 @@ export function GameScreen() {
     setInputLocked(false);
   }, [screen, paused]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => setClockNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    setProgressData((prev) => {
+      const next = withRegeneratedEnergy(prev, clockNow);
+      if (next.energy === prev.energy && next.energyUpdatedAt === prev.energyUpdatedAt) {
+        return prev;
+      }
+      saveUserProgress(user.username, next);
+      return next;
+    });
+  }, [clockNow, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setProgressData((prev) => {
+      const existing = prev.levelSeeds[state.level];
+      if (existing === state.seed) return prev;
+      const next = {
+        ...prev,
+        levelSeeds: { ...prev.levelSeeds, [state.level]: state.seed },
+      };
+      saveUserProgress(user.username, next);
+      return next;
+    });
+  }, [user, state.level, state.seed]);
+
+  useEffect(() => {
+    if (!user) return;
+    const dayKey = getDayKey(clockNow);
+    const weekKey = getWeekKey(clockNow);
+    setMetaData((prev) => {
+      const needsDailyReset = prev.daily.key !== dayKey;
+      const needsWeeklyReset = prev.weekly.key !== weekKey;
+      if (!needsDailyReset && !needsWeeklyReset) return prev;
+      const next: MetaProgress = {
+        ...prev,
+        daily: needsDailyReset ? emptyQuestState(dayKey) : prev.daily,
+        weekly: needsWeeklyReset ? emptyQuestState(weekKey) : prev.weekly,
+      };
+      saveUserMeta(user.username, next);
+      return next;
+    });
+  }, [clockNow, user]);
+
+  useEffect(() => {
+    if (!energyNotice) return;
+    const id = window.setTimeout(() => setEnergyNotice(null), 2800);
+    return () => window.clearTimeout(id);
+  }, [energyNotice]);
+
   return (
     <div
       className={[
@@ -633,6 +1079,105 @@ export function GameScreen() {
           }
         `}
           </style>
+        )}
+        {user && screen !== 'auth' && (
+          <div className="absolute top-3 right-3 z-50 flex flex-col items-end gap-2">
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.2 }}
+              className="relative overflow-hidden rounded-2xl border border-cyan-200/50 bg-[linear-gradient(135deg,rgba(12,26,46,0.92),rgba(25,75,78,0.88))] px-2.5 py-2 text-white shadow-[0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-xl min-w-[150px]"
+            >
+              <div
+                className="pointer-events-none absolute left-0 top-0 h-[48%] w-full"
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 55%, rgba(255,255,255,0) 100%)',
+                }}
+              />
+              <div className="pointer-events-none absolute -right-7 -top-7 h-16 w-16 rounded-full bg-cyan-300/20 blur-xl" />
+              <div className="relative flex items-center justify-between gap-1.5">
+                <motion.span
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400/25 text-cyan-100 border border-cyan-200/50 shadow-[0_0_14px_rgba(34,211,238,0.45)]"
+                >
+                  <Zap className="h-4 w-4" />
+                </motion.span>
+                <div className="rounded-lg bg-black/30 border border-white/20 px-2 py-0.5 shadow-inner shadow-black/30">
+                  <div className="text-base font-black tabular-nums tracking-tight text-cyan-50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]">
+                    {liveProgress.energy}/{ENERGY_MAX}
+                  </div>
+                </div>
+                <div className="rounded-md border border-cyan-100/45 bg-gradient-to-b from-cyan-300 to-blue-500 px-1.5 py-[1px] text-[11px] font-black text-white shadow-[0_4px_10px_rgba(0,0,0,0.32)]">
+                  +
+                </div>
+              </div>
+              <div className="relative mt-2 h-[6px] overflow-hidden rounded-full border border-cyan-100/25 bg-black/40">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${energyPercent}%`,
+                    background: 'linear-gradient(90deg, #67e8f9 0%, #22d3ee 45%, #38bdf8 100%)',
+                    boxShadow: '0 0 10px rgba(56, 189, 248, 0.85)',
+                  }}
+                  animate={{ opacity: [0.92, 1, 0.92] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <div className="text-[9px] font-black tracking-[0.18em] text-cyan-100/75">ENERGY</div>
+                <div className="rounded-md border border-cyan-100/20 bg-black/35 px-1.5 py-[2px] text-[11px] font-extrabold tabular-nums text-cyan-50">
+                  {energyTimerCompact}
+                </div>
+              </div>
+            </motion.div>
+            {energyNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="rounded-xl border border-amber-200/45 bg-amber-500/18 px-3 py-1.5 text-[11px] font-semibold text-amber-100 backdrop-blur-md"
+              >
+                {energyNotice}
+              </motion.div>
+            )}
+          </div>
+        )}
+        {screen === 'game' && (
+          <div className="absolute top-3 left-3 right-3 z-40 pointer-events-none">
+            <div className="mx-auto max-w-md rounded-2xl border border-white/25 bg-black/35 backdrop-blur-md px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-[92px]">
+                  <div className="text-[11px] font-black tracking-wide text-white/90">Goals</div>
+                  <div className="mt-1 space-y-1 text-[12px] font-bold tabular-nums">
+                    <div className="flex items-center gap-1.5 text-white/90">
+                      <Coins className="h-3.5 w-3.5 text-yellow-300" />
+                      <span>{remainingCoins}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-white/90">
+                      <Lock className="h-3.5 w-3.5 text-sky-200" />
+                      <span>{remainingLockedDoors}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-0.5 text-center">
+                  <div className="text-[12px] font-black text-white/95">Seviye {state.level}</div>
+                  <div className="text-[10px] font-semibold text-white/70">
+                    {currentStage.toUpperCase()}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-[11px] font-black text-white/90">Moves</div>
+                  <div className="mt-1 inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-lime-200/80 bg-gradient-to-b from-lime-400 to-emerald-600 text-xl font-black tabular-nums text-white shadow-[0_6px_16px_rgba(0,0,0,0.35)]">
+                    {state.movesLeft}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         {/* Animated background stars */}
       {!(screen === 'game' && (isIceStage || isToprakStage)) && (
@@ -1073,6 +1618,8 @@ export function GameScreen() {
             status={resultStatus}
             level={state.level}
             movesUsed={movesUsed}
+            stars={resultStars}
+            shardGain={resultShardGain}
             isFinalLevel={isFinalLevel}
             onRestart={handleRestart}
             onNextLevel={handleNextLevel}
@@ -1171,6 +1718,100 @@ export function GameScreen() {
               document.body
             )}
         </>
+      ) : screen === 'world' ? (
+        <div className="flex-1 p-4 relative z-10 overflow-y-auto">
+          <div className="mx-auto w-full max-w-md space-y-4">
+            <div className="rounded-3xl border border-white/25 bg-white/10 backdrop-blur-md p-4 text-white">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setScreen('menu')}
+                  className="px-3 py-1.5 rounded-xl bg-white/15 border border-white/30 text-xs font-black"
+                >
+                  Geri
+                </button>
+                <div className="text-xs font-bold text-white/80">
+                  Shard: <span className="text-white">{metaData.shard}</span> | Skin Token: <span className="text-white">{metaData.skinToken}</span>
+                </div>
+              </div>
+              <div className="mt-3 text-center">
+                <div className="text-xs font-black tracking-[0.18em] text-white/70">WORLD MAP</div>
+                <div className="text-2xl font-black">Gezegen Rotası</div>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {stageStats.map((stage, idx) => (
+                  <div key={stage.key} className="relative">
+                    {idx < stageStats.length - 1 && (
+                      <div className="absolute left-5 top-11 h-10 w-[2px] bg-white/30" />
+                    )}
+                    <button
+                      onClick={() => handleSelectStage(stage.key)}
+                      className="w-full rounded-2xl border border-white/20 bg-black/20 px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full border border-white/35 bg-gradient-to-br from-cyan-300/60 to-indigo-400/70 flex items-center justify-center font-black">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-base font-black">{stage.label}</div>
+                          <div className="text-xs text-white/75">
+                            {stage.completed}/{stage.total} seviye • {stage.stars} yıldız • {getStageCostText(stage.key)}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/25 bg-white/10 backdrop-blur-md p-4 text-white">
+              <div className="text-sm font-black tracking-wide">Daily / Weekly Görevler</div>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="rounded-xl border border-white/20 bg-black/20 p-3">
+                  <div className="font-semibold">Bugün 10 level bitir ({daily.progress.levelWins}/{DAILY_TARGETS.levels})</div>
+                  <button
+                    disabled={!canClaimDailyLevels}
+                    onClick={() => claimQuestReward('dailyLevels')}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500/80 disabled:bg-white/20 disabled:text-white/60"
+                  >
+                    {daily.claimed.dailyLevels ? 'Alındı' : 'Ödül Al (+10 shard)'}
+                  </button>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-black/20 p-3">
+                  <div className="font-semibold">3 kapı aç ({daily.progress.doorsOpened}/{DAILY_TARGETS.doors})</div>
+                  <button
+                    disabled={!canClaimDailyDoors}
+                    onClick={() => claimQuestReward('dailyDoors')}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500/80 disabled:bg-white/20 disabled:text-white/60"
+                  >
+                    {daily.claimed.dailyDoors ? 'Alındı' : 'Ödül Al (+8 shard)'}
+                  </button>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-black/20 p-3">
+                  <div className="font-semibold">Buz’da 5 leveli süre bitmeden geç ({daily.progress.buzSpeedWins}/{DAILY_TARGETS.buzWins})</div>
+                  <button
+                    disabled={!canClaimDailyBuz}
+                    onClick={() => claimQuestReward('dailyBuz')}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500/80 disabled:bg-white/20 disabled:text-white/60"
+                  >
+                    {daily.claimed.dailyBuz ? 'Alındı' : 'Ödül Al (+12 shard, +1 token)'}
+                  </button>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-black/20 p-3">
+                  <div className="font-semibold">Bu hafta 30 level bitir ({weekly.progress.levelWins}/{WEEKLY_TARGETS.levels})</div>
+                  <button
+                    disabled={!canClaimWeeklyLevels}
+                    onClick={() => claimQuestReward('weeklyLevels')}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-black bg-emerald-500/80 disabled:bg-white/20 disabled:text-white/60"
+                  >
+                    {weekly.claimed.weeklyLevels ? 'Alındı' : 'Ödül Al (+30 shard, +2 token)'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : screen === 'stages' ? (
         <div className="flex-1 flex items-center justify-center p-4 relative z-10">
           <motion.div
@@ -1252,9 +1893,11 @@ export function GameScreen() {
                           {levels.map(({ actualLevel, displayLevel }, idx) => {
                             const isCompleted = completedSet.has(actualLevel);
                             const isInProgress = actualLevel === progressData.currentLevel;
+                            const starCount = metaData.starsByLevel[actualLevel] ?? 0;
                             const isUnlocked =
                               actualLevel <= unlockedUntil ||
                               (selectedStageInfo.key === 'buz' && actualLevel === selectedStageInfo.startLevel);
+                            const energyCost = getEnergyCostForLevel(actualLevel);
                             const offsetX = (idx + 1) % 2 === 0 ? stepX : -stepX;
 
                             const bgColor = isInProgress
@@ -1287,6 +1930,7 @@ export function GameScreen() {
                                   className={[
                                     'w-12 h-12 rounded-full',
                                     'flex items-center justify-center',
+                                    'relative',
                                     'text-[16px] font-black tabular-nums',
                                     'tracking-[0.02em]',
                                     'border backdrop-blur-sm',
@@ -1304,12 +1948,18 @@ export function GameScreen() {
                                   }}
                                   whileHover={isUnlocked ? { scale: 1.06 } : undefined}
                                   whileTap={isUnlocked ? { scale: 0.95 } : undefined}
+                                  title={`${energyCost} enerji`}
                                   onClick={() => {
                                     if (!isUnlocked) return;
                                     handleStartLevel(actualLevel);
                                   }}
                                 >
-                                  {displayLevel}
+                                  <span>{displayLevel}</span>
+                                  {starCount > 0 && (
+                                    <span className="absolute -bottom-4 text-[10px] tracking-[2px] text-amber-300 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]">
+                                      {'★'.repeat(starCount)}
+                                    </span>
+                                  )}
                                 </motion.button>
                               </motion.div>
                             );
@@ -1331,31 +1981,87 @@ export function GameScreen() {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="w-full max-w-sm max-h-[85dvh] bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-sm max-h-[85dvh] rounded-[30px] p-[1px] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.5)] bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.08),rgba(56,189,248,0.25))]"
           >
-            <div className="flex items-center justify-between">
-              <div className="text-white/80 text-xs font-bold">
-                Kullanıcı: <span className="text-white">{user?.username}</span>
+            <div className="relative h-full rounded-[30px] bg-[linear-gradient(160deg,rgba(8,14,34,0.9),rgba(36,18,74,0.88),rgba(10,45,72,0.88))] backdrop-blur-xl border border-white/10 p-5">
+              <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
+              <div className="pointer-events-none absolute -left-10 -bottom-12 h-44 w-44 rounded-full bg-fuchsia-400/20 blur-3xl" />
+              <div className="relative flex items-center justify-between">
+                <div className="text-white/80 text-xs font-bold">
+                  Kullanıcı: <span className="text-white">{user?.username}</span>
+                </div>
+                <button onClick={doLogout} className="text-white/75 text-xs font-bold underline underline-offset-4">
+                  Çıkış
+                </button>
               </div>
-              <button onClick={doLogout} className="text-white/70 text-xs font-bold underline underline-offset-4">
-                Çıkış
-              </button>
-            </div>
 
-            <div className="text-center space-y-2 mt-3">
-              <div className="text-sm font-bold text-white/80 tracking-[0.2em]">LABİRENT</div>
-              <h1 className="text-4xl font-black text-white">MAZE GAME</h1>
-              <p className="text-white/80 text-sm">Oyna butonuna tıkla, aşamanı seç.</p>
-            </div>
+              <div className="text-center space-y-2 mt-4">
+                <div className="text-[11px] font-black text-cyan-100/80 tracking-[0.3em]">LABYRINTH PROTOCOL</div>
+                <h1 className="text-4xl font-black text-white leading-none">MAZE GAME</h1>
+                <p className="text-white/75 text-sm">Dünya haritasından aşamanı seç, görevleri tamamla ve kozmetik ödülleri topla.</p>
+              </div>
 
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleShowStages}
-              className="mt-6 w-full bg-gradient-to-r from-cyan-400 to-blue-600 text-white py-4 rounded-2xl font-black text-lg shadow-2xl"
-            >
-              Oyna
-            </motion.button>
+              <div className="mt-4 rounded-2xl border border-cyan-100/20 bg-black/25 p-3 text-white">
+                <div className="text-xs font-black tracking-[0.18em] text-cyan-100/80">QUEST TRACKER</div>
+                <div className="mt-3 space-y-2 text-xs">
+                  <div>
+                    <div className="flex justify-between">
+                      <span className="text-white/80">Bugün level</span>
+                      <span className="font-black">{daily.progress.levelWins}/{DAILY_TARGETS.levels}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-cyan-300 to-blue-500" style={{ width: `${dailyLevelPct}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between">
+                      <span className="text-white/80">Kapı aç</span>
+                      <span className="font-black">{daily.progress.doorsOpened}/{DAILY_TARGETS.doors}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-300 to-green-500" style={{ width: `${dailyDoorsPct}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between">
+                      <span className="text-white/80">Buz hızlı</span>
+                      <span className="font-black">{daily.progress.buzSpeedWins}/{DAILY_TARGETS.buzWins}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-sky-300 to-cyan-500" style={{ width: `${dailyBuzPct}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between">
+                      <span className="text-white/80">Hafta level</span>
+                      <span className="font-black">{weekly.progress.levelWins}/{WEEKLY_TARGETS.levels}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-violet-300 to-fuchsia-500" style={{ width: `${weeklyLevelPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-center text-[11px]">
+                    <div className="text-white/60">Shard</div>
+                    <div className="font-black text-cyan-100">{metaData.shard}</div>
+                  </div>
+                  <div className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-center text-[11px]">
+                    <div className="text-white/60">Skin Token</div>
+                    <div className="font-black text-fuchsia-100">{metaData.skinToken}</div>
+                  </div>
+                </div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleShowStages}
+                className="mt-5 w-full bg-[linear-gradient(90deg,#34d399,#22d3ee,#3b82f6)] text-white py-4 rounded-2xl font-black text-lg shadow-[0_12px_30px_rgba(56,189,248,0.35)] border border-cyan-100/40"
+              >
+                Dünya Haritası
+              </motion.button>
+            </div>
           </motion.div>
           {stagePopupOpen && (
             <>
