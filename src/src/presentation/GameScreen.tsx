@@ -29,6 +29,9 @@ import { BuzStage } from './BuzStage';
 import { ToprakStage } from './ToprakStage';
 import { EnergyBar } from './hud/EnergyBar';
 import { InGameHud } from './hud/InGameHud';
+import { HomeScreen } from './home/HomeScreen';
+import { BottomSheetDailyQuests } from './home/BottomSheetDailyQuests';
+import type { DailyQuestItem } from './home/BottomSheetDailyQuests';
 import { ResultDialog } from './overlays/ResultDialog';
 
 type ScreenState = 'auth' | 'menu' | 'world' | 'stages' | 'game';
@@ -295,7 +298,7 @@ export function GameScreen() {
   const { setTheme, themeKey } = useTheme();
   const [state, dispatch] = useReducer(gameReducer, null, () => createLevel(1));
   const [screen, setScreen] = useState<ScreenState>('auth');
-  const [stagePopupOpen, setStagePopupOpen] = useState(false);
+  const [menuDailyOpen, setMenuDailyOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<StageKey>('gezegen');
   const [paused, setPaused] = useState(false);
   const [kumIntroOpen, setKumIntroOpen] = useState(false);
@@ -388,6 +391,12 @@ export function GameScreen() {
   useEffect(() => {
     if (themeKey !== activeThemeKey) setTheme(activeThemeKey);
   }, [activeThemeKey, setTheme, themeKey]);
+
+  useEffect(() => {
+    if (screen !== 'menu' && menuDailyOpen) {
+      setMenuDailyOpen(false);
+    }
+  }, [screen, menuDailyOpen]);
 
   // Kum stage intro (only on first enter or restart; not on auto-advance)
   useEffect(() => {
@@ -824,7 +833,6 @@ export function GameScreen() {
   };
   const handleSelectStage = (stage: StageKey) => {
     setSelectedStage(stage);
-    setStagePopupOpen(false);
     setScreen('stages');
   };
 
@@ -928,10 +936,88 @@ export function GameScreen() {
   const canClaimDailyDoors = daily.progress.doorsOpened >= DAILY_TARGETS.doors && !daily.claimed.dailyDoors;
   const canClaimDailyBuz = daily.progress.buzSpeedWins >= DAILY_TARGETS.buzWins && !daily.claimed.dailyBuz;
   const canClaimWeeklyLevels = weekly.progress.levelWins >= WEEKLY_TARGETS.levels && !weekly.claimed.weeklyLevels;
-  const dailyLevelPct = Math.max(0, Math.min(100, Math.round((daily.progress.levelWins / DAILY_TARGETS.levels) * 100)));
-  const dailyDoorsPct = Math.max(0, Math.min(100, Math.round((daily.progress.doorsOpened / DAILY_TARGETS.doors) * 100)));
-  const dailyBuzPct = Math.max(0, Math.min(100, Math.round((daily.progress.buzSpeedWins / DAILY_TARGETS.buzWins) * 100)));
-  const weeklyLevelPct = Math.max(0, Math.min(100, Math.round((weekly.progress.levelWins / WEEKLY_TARGETS.levels) * 100)));
+  const homeStageInfo = useMemo(
+    () => STAGES.find((stage) => progressData.currentLevel >= stage.startLevel && progressData.currentLevel <= stage.endLevel) ?? STAGES[0],
+    [progressData.currentLevel]
+  );
+  const homeChapterIndex = useMemo(() => {
+    const index = STAGES.findIndex((stage) => stage.key === homeStageInfo.key);
+    return index >= 0 ? index + 1 : 1;
+  }, [homeStageInfo.key]);
+  const homeDailyReady = Number(canClaimDailyLevels) + Number(canClaimDailyDoors) + Number(canClaimDailyBuz);
+  const homeDailyQuests = useMemo<DailyQuestItem[]>(
+    () => [
+      {
+        id: 'daily-levels',
+        title: 'Complete 10 levels',
+        current: daily.progress.levelWins,
+        target: DAILY_TARGETS.levels,
+        rewardLabel: '+10 Shard',
+        claimed: daily.claimed.dailyLevels,
+        claimable: canClaimDailyLevels,
+        onClaim: () => claimQuestReward('dailyLevels'),
+      },
+      {
+        id: 'daily-doors',
+        title: 'Open 3 doors',
+        current: daily.progress.doorsOpened,
+        target: DAILY_TARGETS.doors,
+        rewardLabel: '+8 Shard',
+        claimed: daily.claimed.dailyDoors,
+        claimable: canClaimDailyDoors,
+        onClaim: () => claimQuestReward('dailyDoors'),
+      },
+      {
+        id: 'daily-buz',
+        title: 'Win 5 ice levels before timer',
+        current: daily.progress.buzSpeedWins,
+        target: DAILY_TARGETS.buzWins,
+        rewardLabel: '+12 Shard, +1 Token',
+        claimed: daily.claimed.dailyBuz,
+        claimable: canClaimDailyBuz,
+        onClaim: () => claimQuestReward('dailyBuz'),
+      },
+    ],
+    [
+      daily.progress.levelWins,
+      daily.progress.doorsOpened,
+      daily.progress.buzSpeedWins,
+      daily.claimed.dailyLevels,
+      daily.claimed.dailyDoors,
+      daily.claimed.dailyBuz,
+      canClaimDailyLevels,
+      canClaimDailyDoors,
+      canClaimDailyBuz,
+      claimQuestReward,
+    ]
+  );
+  const chapterThemeMap: Record<StageKey, 'cosmic' | 'ice' | 'sand' | 'soil' | 'volcano'> = {
+    gezegen: 'cosmic',
+    buz: 'ice',
+    kum: 'sand',
+    toprak: 'soil',
+    volkan: 'volcano',
+  };
+  const chapterIconMap: Record<StageKey, string> = {
+    gezegen: '🪐',
+    buz: '❄',
+    kum: '🏜',
+    toprak: '🌿',
+    volkan: '🌋',
+  };
+  const homeChapterPreviews = useMemo(
+    () =>
+      stageStats.map((stage) => ({
+        id: stage.key,
+        title: stage.label,
+        completedText: `${stage.completed}/${stage.total} completed`,
+        progress: stage.total > 0 ? (stage.completed / stage.total) * 100 : 0,
+        icon: chapterIconMap[stage.key],
+        theme: chapterThemeMap[stage.key],
+        onOpen: () => handleSelectStage(stage.key),
+      })),
+    [stageStats, handleSelectStage]
+  );
   const hudScore = useMemo(() => {
     const base = state.level * 120;
     const coinScore = state.collectedCoins.size * 180;
@@ -1788,135 +1874,27 @@ export function GameScreen() {
           </motion.div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="relative w-full max-w-sm max-h-[85dvh] rounded-[30px] p-[1px] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.5)] bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.08),rgba(56,189,248,0.25))]"
-          >
-            <div className="relative h-full rounded-[30px] bg-[linear-gradient(160deg,rgba(8,14,34,0.9),rgba(36,18,74,0.88),rgba(10,45,72,0.88))] backdrop-blur-xl border border-white/10 p-5">
-              <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
-              <div className="pointer-events-none absolute -left-10 -bottom-12 h-44 w-44 rounded-full bg-fuchsia-400/20 blur-3xl" />
-              <div className="relative flex items-center justify-between">
-                <div className="text-white/80 text-xs font-bold">
-                  Kullanıcı: <span className="text-white">{user?.username}</span>
-                </div>
-                <button onClick={doLogout} className="text-white/75 text-xs font-bold underline underline-offset-4">
-                  Çıkış
-                </button>
-              </div>
-
-              <div className="text-center space-y-2 mt-4">
-                <div className="text-[11px] font-black text-cyan-100/80 tracking-[0.3em]">LABYRINTH PROTOCOL</div>
-                <h1 className="text-4xl font-black text-white leading-none">MAZE GAME</h1>
-                <p className="text-white/75 text-sm">Dünya haritasından aşamanı seç, görevleri tamamla ve kozmetik ödülleri topla.</p>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-cyan-100/20 bg-black/25 p-3 text-white">
-                <div className="text-xs font-black tracking-[0.18em] text-cyan-100/80">QUEST TRACKER</div>
-                <div className="mt-3 space-y-2 text-xs">
-                  <div>
-                    <div className="flex justify-between">
-                      <span className="text-white/80">Bugün level</span>
-                      <span className="font-black">{daily.progress.levelWins}/{DAILY_TARGETS.levels}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-cyan-300 to-blue-500" style={{ width: `${dailyLevelPct}%` }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between">
-                      <span className="text-white/80">Kapı aç</span>
-                      <span className="font-black">{daily.progress.doorsOpened}/{DAILY_TARGETS.doors}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-emerald-300 to-green-500" style={{ width: `${dailyDoorsPct}%` }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between">
-                      <span className="text-white/80">Buz hızlı</span>
-                      <span className="font-black">{daily.progress.buzSpeedWins}/{DAILY_TARGETS.buzWins}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-sky-300 to-cyan-500" style={{ width: `${dailyBuzPct}%` }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between">
-                      <span className="text-white/80">Hafta level</span>
-                      <span className="font-black">{weekly.progress.levelWins}/{WEEKLY_TARGETS.levels}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-violet-300 to-fuchsia-500" style={{ width: `${weeklyLevelPct}%` }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-center text-[11px]">
-                    <div className="text-white/60">Shard</div>
-                    <div className="font-black text-cyan-100">{metaData.shard}</div>
-                  </div>
-                  <div className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-center text-[11px]">
-                    <div className="text-white/60">Skin Token</div>
-                    <div className="font-black text-fuchsia-100">{metaData.skinToken}</div>
-                  </div>
-                </div>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleShowStages}
-                className="mt-5 w-full bg-[linear-gradient(90deg,#34d399,#22d3ee,#3b82f6)] text-white py-4 rounded-2xl font-black text-lg shadow-[0_12px_30px_rgba(56,189,248,0.35)] border border-cyan-100/40"
-              >
-                Dünya Haritası
-              </motion.button>
-            </div>
-          </motion.div>
-          {stagePopupOpen && (
-            <>
-              <div className="fixed inset-0 z-20 bg-black/50" onClick={() => setStagePopupOpen(false)} />
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-30 flex items-center justify-center p-4"
-              >
-                <div className="w-full max-w-sm bg-white/15 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-2xl">
-                  <div className="flex items-center justify-between">
-                    <div className="text-white font-black">Aşamalar</div>
-                    <button onClick={() => setStagePopupOpen(false)} className="text-white/70 text-xs font-bold">
-                      Kapat
-                    </button>
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 gap-3">
-                    {STAGES.map((stage) => (
-                      <button
-                        key={stage.key}
-                        onClick={() => handleSelectStage(stage.key)}
-                        className="overflow-hidden rounded-2xl border border-white/20 text-left text-white cursor-pointer"
-                      >
-                        <div
-                          className="h-24 w-full rounded-2xl overflow-hidden"
-                          style={{
-                            backgroundImage: `url(/stages/${stage.key}.jpg)`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'center',
-                            backgroundSize: 'contain',
-                          }}
-                        />
-
-                        <div className="px-4 py-3 text-lg font-black">{stage.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </div>
+        <>
+          <HomeScreen
+            userName={user?.username ?? 'Guest'}
+            chapterName={`Chapter ${homeChapterIndex} • ${homeStageInfo.label}`}
+            levelLabel={`Level ${progressData.currentLevel}`}
+            heroIcon={chapterIconMap[homeStageInfo.key]}
+            energy={{ id: 'energy', icon: '⚡', value: liveProgress.energy, tone: 'energy' }}
+            currencies={[
+              { id: 'shards', icon: '◈', value: metaData.shard, tone: 'shard' },
+              { id: 'coins', icon: '◉', value: state.collectedCoins.size, tone: 'coin' },
+            ]}
+            dailySummary={`${homeDailyReady}/3 ready`}
+            chapters={homeChapterPreviews}
+            onContinue={() => handleStartLevel(progressData.currentLevel)}
+            onWorldMap={handleShowStages}
+            onDaily={() => setMenuDailyOpen(true)}
+            onLogout={doLogout}
+            onSettings={() => setScreen('world')}
+          />
+          <BottomSheetDailyQuests open={menuDailyOpen} quests={homeDailyQuests} onClose={() => setMenuDailyOpen(false)} />
+        </>
       )}
     </div>
   );

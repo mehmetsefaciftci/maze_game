@@ -1,0 +1,116 @@
+.card {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
+    var(--glass);
+  backdrop-filter: blur(22px) saturate(120%);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 12px;
+  animation: heroIn 220ms ease-out both;
+}
+
+.stageIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  border: 1px solid rgba(192, 225, 255, 0.38);
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.4), transparent 45%),
+    linear-gradient(145deg, rgba(107, 180, 255, 0.78), rgba(103, 92, 255, 0.74));
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  box-shadow: 0 8px 20px rgba(87, 137, 255, 0.32);
+}
+
+.body {
+  min-width: 0;
+}
+
+.kicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.title {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: clamp(19px, 5.3vw, 24px);
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.level {
+  margin: 2px 0 0;
+  color: var(--accent2);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.subtext {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cta {
+  margin-top: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(186, 227, 255, 0.5);
+  background: linear-gradient(96deg, var(--accent), var(--accent2));
+  color: #071126;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 10px 16px;
+  min-width: 118px;
+  box-shadow: 0 0 0 rgba(125, 166, 255, 0.28);
+  animation: ctaGlow 2.8s ease-in-out infinite;
+  transition: transform 140ms ease;
+}
+
+.cta:active {
+  transform: scale(0.98);
+}
+
+@keyframes heroIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ctaGlow {
+  0%,
+  100% {
+    box-shadow: 0 8px 18px rgba(90, 145, 255, 0.28);
+  }
+  50% {
+    box-shadow: 0 10px 24px rgba(136, 122, 255, 0.34);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cta {
+    animation: none;
+  }
+
+  .cta {
+    transition: none;
+  }
+}

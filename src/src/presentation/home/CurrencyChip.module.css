@@ -1,0 +1,36 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(108%);
+  padding: 4px 10px;
+  min-height: 30px;
+}
+
+.icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.value {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.energy {
+  border-color: rgba(160, 228, 255, 0.34);
+}
+
+.shard {
+  border-color: rgba(167, 178, 255, 0.34);
+}
+
+.coin {
+  border-color: rgba(255, 210, 141, 0.34);
+}

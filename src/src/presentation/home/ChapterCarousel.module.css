@@ -1,0 +1,140 @@
+.wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.card {
+  flex: 0 0 126px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  grid-template-areas:
+    "ring icon"
+    "title title"
+    "meta meta";
+  align-items: center;
+  gap: 5px 8px;
+  transition: transform 140ms ease;
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+.ring {
+  grid-area: ring;
+  width: 40px;
+  height: 40px;
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  fill: none;
+  stroke: rgba(221, 233, 251, 0.2);
+  stroke-width: 3.2;
+}
+
+.ringFill {
+  fill: none;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+
+.stopA {
+  stop-color: var(--accent);
+}
+
+.stopB {
+  stop-color: var(--accent2);
+}
+
+.icon {
+  grid-area: icon;
+  font-size: 18px;
+  line-height: 1;
+  justify-self: end;
+}
+
+.cardTitle {
+  grid-area: title;
+  margin: 2px 0 0;
+  text-align: left;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.completed {
+  grid-area: meta;
+  margin: 0;
+  text-align: left;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.cosmic {
+  background:
+    radial-gradient(circle at 86% 10%, rgba(140, 113, 255, 0.28), transparent 42%),
+    linear-gradient(160deg, rgba(76, 102, 190, 0.26), rgba(48, 24, 106, 0.28)),
+    var(--glass);
+}
+
+.ice {
+  background:
+    radial-gradient(circle at 82% 14%, rgba(125, 228, 255, 0.28), transparent 45%),
+    linear-gradient(160deg, rgba(62, 142, 186, 0.27), rgba(27, 87, 141, 0.28)),
+    var(--glass);
+}
+
+.sand {
+  background:
+    radial-gradient(circle at 84% 14%, rgba(255, 219, 121, 0.26), transparent 42%),
+    linear-gradient(160deg, rgba(184, 122, 48, 0.25), rgba(117, 77, 31, 0.28)),
+    var(--glass);
+}
+
+.soil {
+  background:
+    radial-gradient(circle at 84% 14%, rgba(180, 255, 162, 0.23), transparent 42%),
+    linear-gradient(160deg, rgba(67, 128, 78, 0.25), rgba(40, 87, 47, 0.3)),
+    var(--glass);
+}
+
+.volcano {
+  background:
+    radial-gradient(circle at 84% 14%, rgba(255, 132, 112, 0.26), transparent 42%),
+    linear-gradient(160deg, rgba(150, 63, 38, 0.28), rgba(103, 29, 29, 0.3)),
+    var(--glass);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
